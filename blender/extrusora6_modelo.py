@@ -184,8 +184,13 @@ NIP_Z = TZ + 0.55
 CAN_Z0 = PZ + 0.90
 R_BUB = 0.30
 IMP_Y = -2.40        # centro de la impresora
-TRQ_Y = -4.80        # centro de la troqueladora
-EMB_Y = (-6.90, -8.90)   # extremo trasero de cada embobinadora
+TRQ_L = 2.60         # largo de la troqueladora
+TRQ_Y = -3.90 - TRQ_L / 2   # centro de la troqueladora (entrada fija junto a la impresora)
+TRQ_X = TRQ_Y - TRQ_L / 2 - 0.28   # poste de salida que sube la lamina al puente
+# Embobinadoras espalda con espalda: la 1 mira hacia la torre (+Y) y la 2 hacia el frente (-Y).
+# EMB = (lado trasero/alto de cada una, sentido: -1 mira a +Y, +1 mira a -Y)
+EMB = ((TRQ_X - 2.55, -1), (TRQ_X - 2.80, 1))
+EMB_LW = 1.70
 OVZ = 2.65           # altura del puente aereo de rodillos
 LAYFLAT = math.pi * R_BUB / 2  # semi-ancho de la lamina aplanada
 
@@ -467,16 +472,17 @@ def bubble():
         (IMP_Y + 0.10, 0.88),      # grupo de impresion inferior
         (IMP_Y - 0.15, 0.78),
         (IMP_Y - 0.70, 0.74),      # sale hacia la troqueladora
-        (TRQ_Y + 0.90, 0.95),
-        (TRQ_Y - 0.80, 0.97),      # troquelado
-        (TRQ_Y - 1.15, 0.97),
-        (TRQ_Y - 1.18, OVZ - 0.06),   # sube al puente aereo
+        (TRQ_Y + TRQ_L / 2, 0.95),
+        (TRQ_Y - TRQ_L / 2 + 0.10, 0.97),      # troquelado
+        (TRQ_X + 0.03, 0.97),
+        (TRQ_X, OVZ - 0.06),   # sube al puente aereo
     ]
     ramas = []
-    for k, y0 in enumerate((EMB_Y[0], EMB_Y[1]), start=1):
-        ramas.append((f"Lamina_a_Embobinadora_{k}", [(TRQ_Y - 1.18, OVZ - 0.06), (TRQ_Y - 1.10, OVZ + 0.02),
-                     (y0 - 0.05, OVZ + 0.02), (y0 - 0.15, 1.58), (y0 - 0.45, 1.30), (y0 - 0.80, 0.97),
-                     (y0 - 1.02, 1.04), (y0 - 1.18, 1.18)]))
+    for k, (y0, dd) in enumerate(EMB, start=1):
+        Y = lambda o, y0=y0, dd=dd: y0 - dd * o
+        ramas.append((f"Lamina_a_Embobinadora_{k}", [(TRQ_X, OVZ - 0.06), (TRQ_X - 0.08, OVZ + 0.02 * k),
+                     (Y(0.0), OVZ + 0.02 * k), (Y(0.15), 1.58), (Y(0.45), 1.30), (Y(0.80), 0.97),
+                     (Y(1.02), 1.04), (Y(1.18), 1.18)]))
     verts, faces = [], []
     for (y, z) in path:
         verts += [(-w, y, z), (w, y, z)]
@@ -673,7 +679,7 @@ def winder():
     # ============================ TROQUELADORA ============================
     grupo("23_Troqueladora")
     y0, hw = TRQ_Y, 0.85
-    L = 1.80
+    L = TRQ_L
     box("Troqueladora_Cuerpo", (2 * hw, L, 0.85), (0, y0, 0.10 + 0.425), M["blanco"], 0.012)
     for sx in (-1, 1):
         box("Troqueladora_Panel_Negro", (0.01, L - 0.30, 0.62), (sx * (hw + 0.006), y0, 0.50), M["negro"])
@@ -681,13 +687,16 @@ def winder():
     box("Troqueladora_Mesa", (2 * hw - 0.10, L - 0.10, 0.04), (0, y0, 0.97), M["aluminio"])
     # unidad de troquel: viga con cilindros neumaticos
     box("Troqueladora_Viga_Troquel", (2 * hw - 0.10, 0.16, 0.12), (0, y0 + 0.40, 1.12), M["gris_panel"], 0.005)
+    box("Troqueladora_Viga_Troquel", (2 * hw - 0.10, 0.16, 0.12), (0, y0 - 0.55, 1.12), M["gris_panel"], 0.005)
+    for k in range(6):
+        cyl("Troqueladora_Cilindro_Neumatico", 0.035, 0.16, (-0.55 + k * 0.22, y0 - 0.55, 1.26), M["aluminio"], verts=16)
     for k in range(6):
         cyl("Troqueladora_Cilindro_Neumatico", 0.035, 0.16, (-0.55 + k * 0.22, y0 + 0.40, 1.26), M["aluminio"], verts=16)
     # bandeja blanca curva (cubierta de malla) sobre postes
     prof = [(-0.70, 1.20), (-0.35, 1.36), (0.0, 1.40), (0.35, 1.36), (0.70, 1.20)]
     for sx in (-1, 1):
-        verts = [(sx * (hw - 0.05) - 0.02, y0 + py * 0.9, pz) for py, pz in prof]
-        verts += [(sx * (hw - 0.05) + 0.02, y0 + py * 0.9, pz) for py, pz in prof]
+        verts = [(sx * (hw - 0.05) - 0.02, y0 + py * L / 2, pz) for py, pz in prof]
+        verts += [(sx * (hw - 0.05) + 0.02, y0 + py * L / 2, pz) for py, pz in prof]
         vv = verts + [(x, y, z - 0.06) for (x, y, z) in verts]
         n = len(prof)
         faces = []
@@ -697,15 +706,15 @@ def winder():
                       (a, 2 * n + a, 2 * n + b, b), (n + a, n + b, 3 * n + b, 3 * n + a)]
         mesh_from("Troqueladora_Arco_Bandeja", vv, faces, M["blanco"], smooth=False)
     for py, pz in prof:
-        box("Troqueladora_Liston_Bandeja", (2 * hw - 0.10, 0.10, 0.025), (0, y0 + py * 0.9, pz - 0.02), M["blanco"])
+        box("Troqueladora_Liston_Bandeja", (2 * hw - 0.10, 0.10, 0.025), (0, y0 + py * L / 2, pz - 0.02), M["blanco"])
     for sx in (-1, 1):
-        for py in (-0.35, 0.35):
+        for py in (-0.75, 0.0, 0.75):
             cyl("Troqueladora_Poste_Bandeja", 0.018, 0.30, (sx * 0.55, y0 + py, 1.12), M["acero"], verts=12)
     # rodillos de entrada (verdes) y de salida
     cyl("Troqueladora_Rodillo_Entrada", 0.05, 2 * hw - 0.06, (0, y0 + L / 2 - 0.05, 0.98), M["verde"], axis="X")
     cyl("Troqueladora_Rodillo_Salida", 0.05, 2 * hw - 0.06, (0, y0 - L / 2 + 0.05, 0.98), M["cromo"], axis="X")
     # gabinete de control aparte (HMI, botonera, senal de riesgo electrico)
-    cx_, cy_ = hw + 0.32, y0 - 0.55
+    cx_, cy_ = hw + 0.32, y0 - 0.85
     box("Troqueladora_Gabinete_Control", (0.55, 0.50, 1.05), (cx_, cy_, 0.06 + 0.525), M["blanco"], 0.01)
     box("Troqueladora_Puerta_Gabinete", (0.01, 0.40, 0.70), (cx_ + 0.28, cy_, 0.48), M["negro"])
     box("Troqueladora_Pantalla_HMI", (0.18, 0.13, 0.012), (cx_ - 0.08, cy_, 1.115), M["negro"])
@@ -723,79 +732,76 @@ def winder():
                                               Vector((ax_, ay_ - 0.20, 1.86)), Vector((ax_, ay_ - 0.48, 1.78))],
                0.10, M["blanco"])
     cyl("Aspirador_Recorte_Manga_Malla", 0.36, 1.70, (ax_, ay_ - 0.48, 0.88), M["verde"], r2=0.10, verts=32)
-    for k, yy in enumerate((y0 - 0.20, y0 - 0.55)):
+    for k, yy in enumerate((y0 - 0.20, y0 - 0.90)):
         curve_tube("Aspirador_Recorte_Manguera_Azul",
                    [Vector((ax_ + 0.10, ay_ - 0.05, 0.22)), Vector((ax_ + 0.25, (ay_ + yy) / 2, 0.12 + 0.05 * k)),
                     Vector((-hw - 0.05, yy, 0.55))], 0.05, M["azul"])
     # poste de salida con rodillo que sube la lamina al puente
     for sx in (-1, 1):
-        box("Poste_Salida_Troqueladora", (0.08, 0.08, OVZ), (sx * 0.85, y0 - 1.18, OVZ / 2), M["blanco"], 0.004)
-    cyl("Rodillo_Salida_Alto", 0.045, 1.62, (0, y0 - 1.18, OVZ - 0.06), M["cromo"], axis="X")
-    cyl("Rodillo_Salida_Bajo", 0.045, 1.62, (0, y0 - 1.15, 0.97), M["cromo"], axis="X")
+        box("Poste_Salida_Troqueladora", (0.08, 0.08, OVZ), (sx * 0.85, TRQ_X, OVZ / 2), M["blanco"], 0.004)
+    cyl("Rodillo_Salida_Alto", 0.045, 1.62, (0, TRQ_X, OVZ - 0.06), M["cromo"], axis="X")
+    cyl("Rodillo_Salida_Bajo", 0.045, 1.62, (0, TRQ_X + 0.03, 0.97), M["cromo"], axis="X")
 
     # ============================ PUENTE AEREO DE RODILLOS ============================
     grupo("24_Puente_Aereo_Rodillos")
-    ya, yz = TRQ_Y - 1.18, EMB_Y[1] - 1.75
+    ya = TRQ_X
+    yj = (EMB[0][0] + EMB[1][0]) / 2          # junta entre las dos embobinadoras (espalda con espalda)
+    yz = EMB[1][0] - 0.10
     for sx in (-1, 1):
-        beam("Puente_Tubo_Longitudinal", (sx * 0.80, ya, OVZ + 0.10), (sx * 0.80, yz, OVZ + 0.10), 0.07, M["acero"],
+        beam("Puente_Tubo_Longitudinal", (sx * 1.05, ya, OVZ + 0.10), (sx * 1.05, yz, OVZ + 0.10), 0.07, M["acero"],
              round_=True)
-        for yp in (EMB_Y[0] - 1.85, yz):
-            box("Puente_Poste", (0.08, 0.08, OVZ + 0.10), (sx * 0.80, yp, (OVZ + 0.10) / 2), M["negro"], 0.004)
-    for yp in (EMB_Y[0] - 1.85, yz):
-        box("Puente_Travesano", (1.68, 0.08, 0.08), (0, yp, OVZ + 0.14), M["negro"], 0.004)
-    for y0 in EMB_Y:
-        cyl("Puente_Rodillo", 0.04, 1.56, (0, y0 - 0.05, OVZ + 0.0), M["cromo"], axis="X")
-    cyl("Puente_Rodillo", 0.04, 1.56, (0, (ya + EMB_Y[0]) / 2, OVZ + 0.0), M["cromo"], axis="X")
+        box("Puente_Poste", (0.08, 0.08, OVZ + 0.10), (sx * 1.05, yj, (OVZ + 0.10) / 2), M["negro"], 0.004)
+    box("Puente_Travesano", (2.18, 0.08, 0.08), (0, yj, OVZ + 0.14), M["negro"], 0.004)
+    beam("Puente_Travesano", (-1.05, ya, OVZ + 0.10), (1.05, ya, OVZ + 0.10), 0.07, M["acero"], round_=True)
+    for y in ((ya + yj) / 2, EMB[0][0] + 0.02, EMB[1][0] - 0.02):
+        cyl("Puente_Rodillo", 0.04, 2.0, (0, y, OVZ), M["cromo"], axis="X")
 
-    # ============================ DOS EMBOBINADORAS EN TANDEM ============================
-    for k, y0 in enumerate(EMB_Y, start=1):
+    # ====================== DOS EMBOBINADORAS ESPALDA CON ESPALDA ======================
+    # cada una recibe su hoja por el lado alto (atras) y bobina hacia su propio lado
+    for k, (y0, dd) in enumerate(EMB, start=1):
         grupo(f"2{4 + k}_Embobinadora_{k}")
         tg = f"Embobinadora_{k}"
+        Y = lambda o, y0=y0, dd=dd: y0 - dd * o
         hw = 0.75
-        Lw = 1.70
-        yc = y0 - Lw / 2
-        box(f"{tg}_Base", (2 * hw + 0.10, Lw, 0.10), (0, yc, 0.05), M["negro"], 0.005)
+        Lw = EMB_LW
+        box(f"{tg}_Base", (2 * hw + 0.10, Lw, 0.10), (0, Y(Lw / 2), 0.05), M["negro"], 0.005)
         for sx in (-1, 1):
-            # costado alto atras y bajo adelante, con paneles oscuros
-            box(f"{tg}_Bastidor_Alto", (0.14, 0.70, 1.55), (sx * hw, y0 - 0.35, 0.10 + 0.775), M["blanco"], 0.01)
-            box(f"{tg}_Bastidor_Bajo", (0.14, Lw - 0.70, 0.75), (sx * hw, y0 - 0.70 - (Lw - 0.70) / 2, 0.10 + 0.375),
+            box(f"{tg}_Bastidor_Alto", (0.14, 0.70, 1.55), (sx * hw, Y(0.35), 0.10 + 0.775), M["blanco"], 0.01)
+            box(f"{tg}_Bastidor_Bajo", (0.14, Lw - 0.70, 0.75), (sx * hw, Y(0.70 + (Lw - 0.70) / 2), 0.10 + 0.375),
                 M["blanco"], 0.01)
-            box(f"{tg}_Panel_Oscuro", (0.01, 0.55, 0.60), (sx * (hw + 0.075), y0 - 0.35, 0.50), M["gris_oscuro"])
-            box(f"{tg}_Panel_Oscuro", (0.01, 0.80, 0.50), (sx * (hw + 0.075), y0 - 1.20, 0.40), M["gris_oscuro"])
-        # columna de control con HMI y botonera (lado izquierdo, atras)
+            box(f"{tg}_Panel_Oscuro", (0.01, 0.55, 0.60), (sx * (hw + 0.075), Y(0.35), 0.50), M["gris_oscuro"])
+            box(f"{tg}_Panel_Oscuro", (0.01, 0.80, 0.50), (sx * (hw + 0.075), Y(1.20), 0.40), M["gris_oscuro"])
+        # columna de control con HMI y botonera (lado del operador)
         tx = -(hw + 0.27)
-        box(f"{tg}_Columna_Control", (0.40, 0.45, 1.80), (tx, y0 - 0.35, 0.10 + 0.90), M["blanco"], 0.01)
-        box(f"{tg}_Panel_Control", (0.01, 0.32, 0.75), (tx - 0.205, y0 - 0.35, 1.30), M["negro"])
-        box(f"{tg}_Pantalla_HMI", (0.012, 0.20, 0.14), (tx - 0.212, y0 - 0.35, 1.55), M["gris_oscuro"])
+        box(f"{tg}_Columna_Control", (0.40, 0.45, 1.80), (tx, Y(0.35), 0.10 + 0.90), M["blanco"], 0.01)
+        box(f"{tg}_Panel_Control", (0.01, 0.32, 0.75), (tx - 0.205, Y(0.35), 1.30), M["negro"])
+        box(f"{tg}_Pantalla_HMI", (0.012, 0.20, 0.14), (tx - 0.212, Y(0.35), 1.55), M["gris_oscuro"])
         for r in range(3):
             for c in range(3):
-                cyl(f"{tg}_Pulsador", 0.014, 0.02, (tx - 0.215, y0 - 0.43 + c * 0.08, 1.32 - r * 0.07),
+                cyl(f"{tg}_Pulsador", 0.014, 0.02, (tx - 0.215, Y(0.35) - 0.08 + c * 0.08, 1.32 - r * 0.07),
                     M["rojo"] if (r + c) % 2 else M["verde"], axis="X", verts=12)
-        box(f"{tg}_Gabinete_Bajo", (0.40, 0.45, 0.70), (tx, y0 - 0.80, 0.10 + 0.35), M["blanco"], 0.01)
-        box(f"{tg}_Puerta_Gabinete", (0.01, 0.36, 0.55), (tx - 0.205, y0 - 0.80, 0.45), M["gris_oscuro"])
-        # rodillos de entrada, tambor de goma marron, bobina
-        cyl(f"{tg}_Rodillo_Entrada", 0.045, 2 * hw - 0.12, (0, y0 - 0.15, 1.58), M["cromo"], axis="X")
-        cyl(f"{tg}_Rodillo_Tension", 0.05, 2 * hw - 0.12, (0, y0 - 0.45, 1.30), M["cromo"], axis="X")
-        cyl(f"{tg}_Barra_Ajuste", 0.03, 2 * hw - 0.12, (0, y0 - 0.30, 1.42), M["negro"], axis="X")
-        cyl(f"{tg}_Tambor_Goma", 0.16, 2 * hw - 0.12, (0, y0 - 0.85, 0.82), M["goma"], axis="X", verts=64)
+        box(f"{tg}_Gabinete_Bajo", (0.40, 0.45, 0.70), (tx, Y(0.80), 0.10 + 0.35), M["blanco"], 0.01)
+        box(f"{tg}_Puerta_Gabinete", (0.01, 0.36, 0.55), (tx - 0.205, Y(0.80), 0.45), M["gris_oscuro"])
+        cyl(f"{tg}_Rodillo_Entrada", 0.045, 2 * hw - 0.12, (0, Y(0.15), 1.58), M["cromo"], axis="X")
+        cyl(f"{tg}_Rodillo_Tension", 0.05, 2 * hw - 0.12, (0, Y(0.45), 1.30), M["cromo"], axis="X")
+        cyl(f"{tg}_Barra_Ajuste", 0.03, 2 * hw - 0.12, (0, Y(0.30), 1.42), M["negro"], axis="X")
+        cyl(f"{tg}_Tambor_Goma", 0.16, 2 * hw - 0.12, (0, Y(0.85), 0.82), M["goma"], axis="X", verts=64)
         rr = 0.22
-        yb_, zb_ = y0 - 0.85 - (0.16 + rr) * 0.80, 0.82 + (0.16 + rr) * 0.60
+        yb_, zb_ = Y(0.85 + (0.16 + rr) * 0.80), 0.82 + (0.16 + rr) * 0.60
         cyl(f"{tg}_Bobina", rr, 2 * LAYFLAT + 0.02, (0, yb_, zb_), M["bobina"], axis="X", verts=96, bevel=0.01)
         cyl(f"{tg}_Nucleo_Carton", 0.045, 2 * LAYFLAT + 0.08, (0, yb_, zb_), M["carton"], axis="X")
         cyl(f"{tg}_Eje_Bobina", 0.032, 2 * hw + 0.50, (0, yb_, zb_), M["acero"], axis="X")
         for sx in (-1, 1):
             cyl(f"{tg}_Mandril", 0.055, 0.07, (sx * (hw + 0.14), yb_, zb_), M["negro"], axis="X", verts=6)
-            beam(f"{tg}_Brazo_Bobina", (sx * (hw + 0.08), y0 - 0.70, 0.80), (sx * (hw + 0.08), yb_, zb_ - 0.04),
+            beam(f"{tg}_Brazo_Bobina", (sx * (hw + 0.08), Y(0.70), 0.80), (sx * (hw + 0.08), yb_, zb_ - 0.04),
                  0.05, M["blanco"], t2=0.09)
-        cyl(f"{tg}_Rodillo_Piso", 0.05, 2 * hw + 0.05, (0, y0 - Lw + 0.10, 0.25), M["acero"], axis="X")
-        # manguera neumatica naranja en espiral (frente)
-        mx_, my_ = hw + 0.10, y0 - Lw + 0.20
+        cyl(f"{tg}_Rodillo_Piso", 0.05, 2 * hw + 0.05, (0, Y(Lw - 0.10), 0.25), M["acero"], axis="X")
+        mx_, my_ = hw + 0.10, Y(Lw - 0.20)
         pts = []
         for i in range(60):
             a = i * 0.45
             pts.append(Vector((mx_ + 0.05 * math.cos(a), my_ + 0.05 * math.sin(a), 0.65 - i * 0.008)))
         curve_tube(f"{tg}_Manguera_Espiral", pts, 0.006, M["rojo"], res=4)
-
 
 # ---------------------------------------------------------------------------
 # Construccion
