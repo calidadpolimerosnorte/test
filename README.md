@@ -5,6 +5,7 @@ Modelo procedural en Blender de la línea de extrusión de película soplada (bl
 
 ## Contenido
 
+- `blender/extrusora6_modelo.blend` – **Extrusora Nº 6** (no existe la Nº 5): línea larga con torre, impresora flexográfica, troqueladora con aspiración de recorte, puente aéreo de rodillos y dos embobinadoras en tándem. Mismo formato: solo la máquina, sin materiales ni animación, piezas nombradas por grupos. Se genera con `python3 blender/extrusora6_modelo.py`.
 - `blender/extrusora4_modelo.blend` – **Extrusora Nº 4**, mismo formato: solo la máquina, sin materiales ni animación, piezas nombradas por grupos. Se genera con `python3 blender/extrusora4_modelo.py`. Todas las extrusoras usan la misma referencia de planta (piso en z=0, metros).
 - `blender/extrusora3_modelo.blend` – **Extrusora Nº 3**, mismo formato: solo la máquina, sin materiales ni animación, piezas nombradas por grupos. Se genera con `python3 blender/extrusora3_modelo.py`.
 - `blender/extrusora2_modelo.blend` – **Extrusora Nº 2**, mismo formato que el modelo limpio: solo la máquina, sin materiales ni animación, piezas nombradas por grupos. Se genera con `python3 blender/extrusora2_modelo.py`.
