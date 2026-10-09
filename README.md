@@ -5,6 +5,7 @@ Modelo procedural en Blender de la línea de extrusión de película soplada (bl
 
 ## Contenido
 
+- `blender/extrusora2_modelo.blend` – **Extrusora Nº 2**, mismo formato que el modelo limpio: solo la máquina, sin materiales ni animación, piezas nombradas por grupos. Se genera con `python3 blender/extrusora2_modelo.py`.
 - `blender/extrusora_modelo.blend` – **modelo limpio**: solo la máquina, sin materiales, sin animación, sin galpón/piso/luces/cámaras. 332 piezas con nombre descriptivo, agrupadas en 21 colecciones por sistema (torre, plataforma, barandas, nip, canasta, extrusora, tolva, tablero, embobinadora…). Se genera con `python3 blender/extrusora_modelo.py`.
 - `blender/extrusora.py` – script que genera toda la escena (máquina, galpón, luces, cámaras) y renderiza con Cycles.
 - `blender/extrusora.blend` – escena guardada, lista para abrir en Blender 4.2+ / 5.x.
