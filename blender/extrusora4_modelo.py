@@ -182,6 +182,7 @@ NIP_Z = TZ + 0.55    # rodillos de arrastre (nip)
 CAN_Z0 = PZ + 2.05   # inicio de la canasta colapsadora
 R_BUB = 0.42         # burbuja mas ancha
 WY0, WY1 = -2.30, -6.60   # embobinadora doble (4.3 m, mas larga que la Nº 3)
+WC = -4.35           # centro del cuerpo alto (estacion trasera detras, delantera delante)
 LAYFLAT = math.pi * R_BUB / 2  # semi-ancho de la lamina aplanada
 
 
@@ -501,7 +502,6 @@ def bubble():
     # Lamina aplanada: nip -> rodillo de retorno -> baja por el frente ->
     # rodillo bajo la plataforma -> soporte guia -> embobinadora
     w = LAYFLAT
-    YS = WY0 - 1.30   # punto donde se separan las dos hojas
     path = [
         (0.0, NIP_Z + 0.08),
         (-0.30, NIP_Z + 0.17),
@@ -510,16 +510,18 @@ def bubble():
         (-0.52, PZ - 0.32),
         (-0.62, PZ - 0.42),
         (-0.80, 2.48),
-        (WY0 - 0.10, 2.44),
-        (WY0 - 0.22, 2.12),
-        (WY0 - 0.45, 1.90),
-        (WY0 - 0.70, 1.72),
-        (WY0 - 1.00, 1.47),
-        (YS, 1.27),
+        (WC + 0.62, 2.44),
+        (WC + 0.50, 2.13),
+        (WC + 0.30, 1.86),
+        (WC + 0.10, 1.56),
+        (WC, 1.31),
     ]
-    ramas = [("LaminaEstacion1", [(YS, 1.27), (YS - 0.30, 1.10), (-4.30, 1.13), (-4.52, 1.22)]),
-             ("LaminaEstacion2", [(YS, 1.27), (YS - 0.25, 1.62), (-4.95, 1.76), (-5.10, 1.70),
-                                  (-5.45, 1.26), (-5.80, 1.13), (-6.02, 1.22)])]
+    # en el cuerpo alto se separan las dos hojas: una a la estacion trasera y otra a la delantera
+    ramas = []
+    for sg, nombre in ((1, "LaminaEstacionTrasera"), (-1, "LaminaEstacionDelantera")):
+        yd = WC + sg * (1.05 if sg > 0 else 1.45)
+        ramas.append((nombre, [(WC, 1.31), (WC + sg * 0.30, 1.15), (WC + sg * 0.70, 1.10),
+                               (yd - sg * 0.05, 1.13), (yd + sg * 0.15, 1.22)]))
     verts, faces = [], []
     for (y, z) in path:
         verts += [(-w, y, z), (w, y, z)]
@@ -680,89 +682,85 @@ def winder():
     hw = 0.85
     yb, yf = WY0, WY1
     L = yb - yf
-    ym = yb - 1.55          # fin del cuerpo alto
+    t0, t1 = WC + 0.60, WC - 0.60      # cuerpo alto central
     box("BaseNegra", (2 * hw + 0.30, L, 0.12), (0, (yb + yf) / 2, 0.06), M["negro"], 0.005)
     box("PisoChapaEstriada", (2 * hw - 0.16, L - 0.4, 0.01), (0, (yb + yf) / 2 - 0.1, 0.125), M["negro"])
     for sx in (-1, 1):
         x = sx * hw
         xo = x + sx * 0.085
-        # cuerpo alto (entrada)
-        box("BastidorAlto", (0.16, yb - ym, 2.10), (x, (yb + ym) / 2, 0.12 + 1.05), M["blanco"], 0.01)
-        box("PanelOscuro", (0.01, 0.65, 0.75), (xo, yb - 0.45, 1.65), M["gris_oscuro"])
-        box("PanelOscuro", (0.01, 0.65, 0.75), (xo, yb - 1.15, 1.65), M["gris_oscuro"])
-        box("PanelOscuro", (0.01, 1.30, 0.70), (xo, yb - 0.80, 0.62), M["gris_oscuro"])
-        # cuerpo bajo continuo hasta la puntera, con paneles por estacion
-        box("BastidorBajo", (0.16, ym - (yf + 0.35), 1.15), (x, (ym + yf + 0.35) / 2, 0.12 + 0.575), M["blanco"], 0.01)
+        # cuerpo alto central
+        box("BastidorAlto", (0.16, t0 - t1, 2.10), (x, WC, 0.12 + 1.05), M["blanco"], 0.01)
+        box("PanelOscuro", (0.01, 0.95, 0.75), (xo, WC, 1.65), M["gris_oscuro"])
+        box("PanelOscuro", (0.01, 0.95, 0.70), (xo, WC, 0.62), M["gris_oscuro"])
+        # cuerpo bajo trasero (base de la estacion trasera, puertas negras y rejilla)
+        box("BastidorBajoTrasero", (0.16, yb - t0, 1.15), (x, (yb + t0) / 2, 0.12 + 0.575), M["blanco"], 0.01)
+        box("PanelOscuro", (0.01, 0.62, 0.80), (xo, yb - 0.45, 0.60), M["gris_oscuro"])
+        box("PanelOscuro", (0.01, 0.62, 0.80), (xo, yb - 1.10, 0.60), M["gris_oscuro"])
+        box("RejillaGabinete", (0.01, 0.30, 0.25), (xo + sx * 0.003, yb - 0.45, 1.05), M["negro"])
+        # cuerpo bajo delantero y puntera con guardas negras
+        box("BastidorBajoDelantero", (0.16, t1 - (yf + 0.35), 1.15), (x, (t1 + yf + 0.35) / 2, 0.12 + 0.575),
+            M["blanco"], 0.01)
+        box("PanelOscuro", (0.01, 0.62, 0.80), (xo, t1 - 0.45, 0.60), M["gris_oscuro"])
+        box("PanelOscuro", (0.01, 0.62, 0.80), (xo, t1 - 1.10, 0.60), M["gris_oscuro"])
         box("BastidorPuntera", (0.16, 0.35, 0.65), (x, yf + 0.175, 0.12 + 0.325), M["blanco"], 0.01)
-        for yc_ in (-4.40, -5.85):
-            box("PanelOscuro", (0.01, 1.05, 0.65), (xo, yc_, 0.65), M["gris_oscuro"])
-        # portico intermedio que lleva la hoja 2 por encima de la estacion 1
-        box("PosteIntermedio", (0.12, 0.12, 0.70), (x, -4.95, 1.27 + 0.35), M["blanco"], 0.005)
-    box("TravesanoIntermedio", (2 * hw + 0.12, 0.12, 0.10), (0, -4.95, 1.98), M["blanco"], 0.005)
-    # rodillos del cuerpo alto (tramo comun)
-    for py, pz, r in ((yb - 0.12, 2.12, 0.05), (yb - 0.25, 1.92, 0.06), (yb - 0.50, 1.88, 0.06),
-                      (yb - 0.75, 1.68, 0.06), (yb - 1.00, 1.45, 0.07)):
+        beam("GuardaNegra", (x, yf + 0.40, 1.20), (x, yf - 0.02, 0.85), 0.03, M["negro"], t2=0.35)
+    box("TravesanoAlto", (2 * hw + 0.12, 0.14, 0.10), (0, WC, 2.20), M["blanco"], 0.005)
+    # rodillos del cuerpo alto
+    for py, pz, r in ((WC + 0.50, 2.13, 0.05), (WC + 0.30, 1.86, 0.06), (WC + 0.10, 1.56, 0.06)):
         cyl("RodilloCromado", r, 2 * hw - 0.16, (0, py, pz), M["cromo"], axis="X")
-    cyl("RodilloSeparador", 0.07, 2 * hw - 0.16, (0, yb - 1.30, 1.20), M["cromo"], axis="X")
+    cyl("RodilloSeparador", 0.07, 2 * hw - 0.16, (0, WC, 1.24), M["cromo"], axis="X")
     for sx in (-1, 1):
-        cyl("AnilloRojo", 0.08, 0.06, (sx * (hw - 0.14), yb - 1.00, 1.45), M["rojo"], axis="X")
-        cyl("AnilloRojo", 0.08, 0.06, (sx * (hw - 0.14), yb - 1.30, 1.20), M["rojo"], axis="X")
-    # cuchillas que cortan los bordes (separan las dos hojas)
-    for sx in (-1, 1):
-        box("PortaCuchilla", (0.05, 0.10, 0.12), (sx * (LAYFLAT + 0.01), yb - 1.18, 1.42), M["aluminio"], 0.004)
-    beam("BarraCuchillas", (-hw + 0.08, yb - 1.18, 1.48), (hw - 0.08, yb - 1.18, 1.48), 0.03, M["acero"], round_=True)
-    # rodillos de la hoja 2
-    cyl("RodilloHoja2", 0.05, 2 * hw - 0.16, (0, yb - 1.55, 1.58), M["cromo"], axis="X")
-    cyl("RodilloHoja2", 0.06, 2 * hw - 0.16, (0, -4.95, 1.70), M["cromo"], axis="X")
-    cyl("RodilloHoja2", 0.05, 2 * hw - 0.16, (0, -5.45, 1.20), M["cromo"], axis="X")
-    cyl("RodilloHoja1", 0.05, 2 * hw - 0.16, (0, yb - 1.60, 1.05), M["cromo"], axis="X")
+        cyl("AnilloRojo", 0.08, 0.06, (sx * (hw - 0.14), WC, 1.24), M["rojo"], axis="X")
+        box("PortaCuchilla", (0.05, 0.10, 0.12), (sx * (LAYFLAT + 0.01), WC + 0.05, 1.45), M["aluminio"], 0.004)
+    beam("BarraCuchillas", (-hw + 0.08, WC + 0.05, 1.51), (hw - 0.08, WC + 0.05, 1.51), 0.03, M["acero"], round_=True)
+    for sg in (-1, 1):
+        cyl("RodilloGuia", 0.05, 2 * hw - 0.16, (0, WC + sg * 0.30, 1.08), M["cromo"], axis="X")
+        cyl("RodilloGuia", 0.05, 2 * hw - 0.16, (0, WC + sg * 0.70, 1.03), M["cromo"], axis="X")
 
-    # dos estaciones de bobinado (tambor de goma + barra verde + bobina)
-    for k, (yd, rr) in enumerate(((-4.35, 0.22), (-5.80, 0.18)), start=1):
-        grupo(f"20{'cd'[k - 1]}_Estacion_Bobinado_{k}")
-        tg = f"E{k}"
-        cyl(f"TamborGoma{tg}", 0.17, 2 * hw - 0.16, (0, yd, 0.95), M["goma"], axis="X", verts=64)
+    # estaciones de bobinado trasera y delantera (tambor de goma + barra verde + bobina)
+    for sg, est, rr in ((1, "Trasera", 0.20), (-1, "Delantera", 0.23)):
+        grupo(f"20c_Estacion_Bobinado_{est}")
+        yd = WC + sg * (1.05 if sg > 0 else 1.45)
+        cyl(f"TamborGoma{est}", 0.17, 2 * hw - 0.16, (0, yd, 0.95), M["goma"], axis="X", verts=64)
         for sx in (-1, 1):
-            cyl(f"TapaTamborRoja{tg}", 0.10, 0.05, (sx * (hw - 0.12), yd, 0.95), M["rojo"], axis="X")
-        cyl(f"EjeVerde{tg}", 0.035, 2 * hw + 0.40, (0, yd + 0.38, 1.30), M["acero"], axis="X")
-        cyl(f"MangaVerde{tg}", 0.06, 1.25, (0, yd + 0.38, 1.30), M["verde"], axis="X")
-        yb_ = yd - (0.17 + rr) * 0.85
+            cyl(f"TapaTamborRoja{est}", 0.10, 0.05, (sx * (hw - 0.12), yd, 0.95), M["rojo"], axis="X")
+        cyl(f"EjeVerde{est}", 0.035, 2 * hw + 0.40, (0, yd - sg * 0.38, 1.30), M["acero"], axis="X")
+        cyl(f"MangaVerde{est}", 0.06, 1.25, (0, yd - sg * 0.38, 1.30), M["verde"], axis="X")
+        yb_ = yd + sg * (0.17 + rr) * 0.85
         zb_ = 0.95 + (0.17 + rr) * 0.53
-        cyl(f"Bobina{tg}", rr, 2 * LAYFLAT + 0.02, (0, yb_, zb_), M["bobina"], axis="X", verts=96, bevel=0.01)
-        cyl(f"Nucleo{tg}", 0.045, 2 * LAYFLAT + 0.08, (0, yb_, zb_), M["carton"], axis="X")
-        cyl(f"EjeBobina{tg}", 0.035, 2 * hw + 0.50, (0, yb_, zb_), M["acero"], axis="X")
+        cyl(f"Bobina{est}", rr, 2 * LAYFLAT + 0.02, (0, yb_, zb_), M["bobina"], axis="X", verts=96, bevel=0.01)
+        cyl(f"Nucleo{est}", 0.045, 2 * LAYFLAT + 0.08, (0, yb_, zb_), M["carton"], axis="X")
+        cyl(f"EjeBobina{est}", 0.035, 2 * hw + 0.50, (0, yb_, zb_), M["acero"], axis="X")
         for sx in (-1, 1):
-            cyl(f"Mandril{tg}", 0.06, 0.08, (sx * (hw + 0.14), yb_, zb_), M["negro"], axis="X", verts=6)
-            beam(f"BrazoBobina{tg}", (sx * (hw + 0.09), yd + 0.30, 1.05), (sx * (hw + 0.09), yb_, zb_ - 0.05),
+            cyl(f"Mandril{est}", 0.06, 0.08, (sx * (hw + 0.14), yb_, zb_), M["negro"], axis="X", verts=6)
+            beam(f"BrazoBobina{est}", (sx * (hw + 0.09), yd - sg * 0.30, 1.05), (sx * (hw + 0.09), yb_, zb_ - 0.05),
                  0.06, M["blanco"], t2=0.10)
 
     grupo("20_Embobinadora_Doble")
-    # rodillos de piso al frente (descarga de bobinas)
     cyl("RodilloPiso", 0.05, 2 * hw + 0.10, (0, yf + 0.50, 0.42), M["blanco"], axis="X")
     cyl("RodilloPiso", 0.06, 2 * hw + 0.10, (0, yf + 0.18, 0.22), M["blanco"], axis="X")
     for sx in (-1, 1):
         box("SoporteRodilloPiso", (0.08, 0.10, 0.35), (sx * (hw + 0.10), yf + 0.18, 0.22), M["blanco"])
 
-    grupo("20b_Torre_de_Control_Embobinadora")
-    tx, ty = -(hw + 0.40), yb - 0.75
-    box("TorreControl", (0.50, 0.55, 2.20), (tx, ty, 0.12 + 1.10), M["blanco"], 0.01)
-    box("PanelTorre", (0.38, 0.01, 0.70), (tx, ty - 0.28, 0.65), M["gris_oscuro"])
-    box("PantallaHMI", (0.26, 0.015, 0.18), (tx, ty - 0.283, 1.62), M["negro"])
-    for r in range(2):
-        for c in range(4):
-            cyl("Pulsador", 0.016, 0.02, (tx - 0.12 + c * 0.08, ty - 0.29, 1.38 - r * 0.07),
+    grupo("20b_Columna_de_Control")
+    # columna de control adosada al cuerpo alto (lado izquierdo), mandos hacia el frente
+    tx, ty = -(hw + 0.30), WC - 0.25
+    box("TorreControl", (0.45, 0.70, 2.10), (tx, ty, 0.12 + 1.05), M["blanco"], 0.01)
+    fy = ty - 0.355
+    box("PanelTorre", (0.36, 0.01, 1.20), (tx, fy, 1.30), M["negro"])
+    box("PantallaHMI", (0.16, 0.012, 0.11), (tx, fy - 0.006, 1.72), M["gris_oscuro"])
+    box("PantallaHMI", (0.24, 0.012, 0.15), (tx, fy - 0.006, 1.50), M["gris_oscuro"])
+    for r in range(3):
+        for c in range(3):
+            cyl("Pulsador", 0.016, 0.02, (tx - 0.08 + c * 0.08, fy - 0.01, 1.22 - r * 0.07),
                 M["rojo"] if (r + c) % 2 else M["verde"], axis="Y", verts=16)
-    z = 2.34
-    cyl("BalizaBase", 0.035, 0.04, (tx, ty, z), M["negro"])
+    z = 2.22
+    cyl("BalizaBase", 0.035, 0.04, (tx + 0.12, ty - 0.25, z), M["negro"])
     z += 0.04
     for nm in ("BalizaVerde", "BalizaAmbar", "BalizaRoja"):
-        cyl(nm, 0.04, 0.08, (tx, ty, z + 0.04), M["blanco"], bevel=0.004)
+        cyl(nm, 0.04, 0.08, (tx + 0.12, ty - 0.25, z + 0.04), M["blanco"], bevel=0.004)
         z += 0.082
-    gx, gy = -(hw + 0.45), yb + 0.05
-    box("GabineteElectrico", (0.55, 0.95, 1.05), (gx, gy, 0.12 + 0.525), M["blanco"], 0.01)
-    for k in (-1, 1):
-        box("PuertaGabinete", (0.01, 0.40, 0.80), (gx - 0.28, gy + k * 0.22, 0.62), M["negro"])
-    box("RejillaGabinete", (0.40, 0.70, 0.01), (gx, gy, 0.12 + 1.055), M["gris_oscuro"])
+    # manometro y manguera neumatica naranja en espiral (frente izquierdo)
     mx_, my_ = -(hw + 0.12), yf + 0.45
     box("CajaManometro", (0.08, 0.20, 0.16), (mx_, my_, 0.82), M["blanco"], 0.005)
     cyl("Manometro", 0.045, 0.02, (mx_ - 0.05, my_, 0.84), M["aluminio"], axis="X", verts=24)
@@ -773,9 +771,11 @@ def winder():
     curve_tube("MangueraEspiral", pts, 0.006, M["rojo"], res=4)
 
     grupo("21_Puente_de_Rodillos")
+    # puente horizontal desde la torre, pasa sobre la estacion trasera hasta el cuerpo alto
     for sx in (-1, 1):
-        beam("VigaPuente", (sx * 0.80, -CY, 2.40), (sx * 0.80, yb - 0.05, 2.40), 0.08, M["negro"], t2=0.14)
-    for y in (-1.15, -1.70):
+        beam("VigaPuente", (sx * 0.80, -CY, 2.40), (sx * 0.80, WC + 0.62, 2.40), 0.08, M["negro"], t2=0.14)
+        box("PostePuente", (0.08, 0.08, 1.20), (sx * 0.80, yb - 0.10, 1.80), M["negro"])
+    for y in (-1.15, -1.70, -2.60, -3.30):
         cyl("RodilloPuente", 0.04, 1.56, (0, y, 2.43), M["acero"], axis="X")
 
 
@@ -808,24 +808,29 @@ for ob in list(bpy.data.objects):
 # Nombres descriptivos de cada pieza
 # ---------------------------------------------------------------------------
 NOMBRES = {
-    "TamborGomaE1": "Tambor_Goma_Estacion_1",
-    "TapaTamborRojaE1": "Tapa_Tambor_Roja_Estacion_1",
-    "EjeVerdeE1": "Eje_Manga_Verde_Estacion_1",
-    "MangaVerdeE1": "Manga_Verde_Estacion_1",
-    "BobinaE1": "Bobina_Estacion_1",
-    "NucleoE1": "Nucleo_Carton_Estacion_1",
-    "EjeBobinaE1": "Eje_Bobina_Estacion_1",
-    "MandrilE1": "Mandril_Estacion_1",
-    "BrazoBobinaE1": "Brazo_Porta_Bobina_Estacion_1",
-    "TamborGomaE2": "Tambor_Goma_Estacion_2",
-    "TapaTamborRojaE2": "Tapa_Tambor_Roja_Estacion_2",
-    "EjeVerdeE2": "Eje_Manga_Verde_Estacion_2",
-    "MangaVerdeE2": "Manga_Verde_Estacion_2",
-    "BobinaE2": "Bobina_Estacion_2",
-    "NucleoE2": "Nucleo_Carton_Estacion_2",
-    "EjeBobinaE2": "Eje_Bobina_Estacion_2",
-    "MandrilE2": "Mandril_Estacion_2",
-    "BrazoBobinaE2": "Brazo_Porta_Bobina_Estacion_2",
+    "TamborGomaTrasera": "Tambor_Goma_Estacion_Trasera",
+    "TapaTamborRojaTrasera": "Tapa_Tambor_Roja_Estacion_Trasera",
+    "EjeVerdeTrasera": "Eje_Manga_Verde_Estacion_Trasera",
+    "MangaVerdeTrasera": "Manga_Verde_Estacion_Trasera",
+    "BobinaTrasera": "Bobina_Estacion_Trasera",
+    "NucleoTrasera": "Nucleo_Carton_Estacion_Trasera",
+    "EjeBobinaTrasera": "Eje_Bobina_Estacion_Trasera",
+    "MandrilTrasera": "Mandril_Estacion_Trasera",
+    "BrazoBobinaTrasera": "Brazo_Porta_Bobina_Estacion_Trasera",
+    "TamborGomaDelantera": "Tambor_Goma_Estacion_Delantera",
+    "TapaTamborRojaDelantera": "Tapa_Tambor_Roja_Estacion_Delantera",
+    "EjeVerdeDelantera": "Eje_Manga_Verde_Estacion_Delantera",
+    "MangaVerdeDelantera": "Manga_Verde_Estacion_Delantera",
+    "BobinaDelantera": "Bobina_Estacion_Delantera",
+    "NucleoDelantera": "Nucleo_Carton_Estacion_Delantera",
+    "EjeBobinaDelantera": "Eje_Bobina_Estacion_Delantera",
+    "MandrilDelantera": "Mandril_Estacion_Delantera",
+    "BrazoBobinaDelantera": "Brazo_Porta_Bobina_Estacion_Delantera",
+    "BastidorBajoTrasero": "Bastidor_Bajo_Trasero", "BastidorBajoDelantero": "Bastidor_Bajo_Delantero",
+    "GuardaNegra": "Guarda_Negra_Frontal", "TravesanoAlto": "Travesano_Cuerpo_Alto",
+    "PostePuente": "Poste_Puente_Rodillos", "LaminaEstacionTrasera": "Lamina_Hoja_a_Estacion_Trasera",
+    "LaminaEstacionDelantera": "Lamina_Hoja_a_Estacion_Delantera",
+    ("20", "RodilloGuia"): "Rodillo_Guia_Embobinadora", ("20", "TorreControl"): "Columna_Control_Embobinadora",
     # Extrusora N4: piezas propias
     "Vigueta": "Vigueta_Plataforma", "Descanso": "Descanso_Escalera", "PosteDescanso": "Poste_Descanso",
     "PlataformaEnfriador": "Plataforma_Voladizo_Enfriador", "VigaVoladizo": "Viga_Voladizo",
