@@ -5,6 +5,7 @@ Modelo procedural en Blender de la línea de extrusión de película soplada (bl
 
 ## Contenido
 
+- `blender/extrusora4_modelo.blend` – **Extrusora Nº 4**, mismo formato: solo la máquina, sin materiales ni animación, piezas nombradas por grupos. Se genera con `python3 blender/extrusora4_modelo.py`. Todas las extrusoras usan la misma referencia de planta (piso en z=0, metros).
 - `blender/extrusora3_modelo.blend` – **Extrusora Nº 3**, mismo formato: solo la máquina, sin materiales ni animación, piezas nombradas por grupos. Se genera con `python3 blender/extrusora3_modelo.py`.
 - `blender/extrusora2_modelo.blend` – **Extrusora Nº 2**, mismo formato que el modelo limpio: solo la máquina, sin materiales ni animación, piezas nombradas por grupos. Se genera con `python3 blender/extrusora2_modelo.py`.
 - `blender/extrusora_modelo.blend` – **modelo limpio**: solo la máquina, sin materiales, sin animación, sin galpón/piso/luces/cámaras. 332 piezas con nombre descriptivo, agrupadas en 21 colecciones por sistema (torre, plataforma, barandas, nip, canasta, extrusora, tolva, tablero, embobinadora…). Se genera con `python3 blender/extrusora_modelo.py`.
