@@ -178,9 +178,44 @@ CX, CY = 1.28, 0.93  # columnas inferiores (casi en las esquinas)
 DIE_Z = 1.05         # parte superior del cabezal / anillo de aire
 NIP_Z = PZ + 2.55    # rodillos de arrastre (nip)
 MZ = PZ + 2.05       # plataformas laterales superiores (servicio del nip)
-LAD_Y = (0.28, 0.86)  # escalera principal: atras-derecha
+LAD_Y = (0.28, 0.86)
+WC = -3.40           # centro de la embobinadora doble (frente hacia -Y)
+WL = 1.45            # semilargo de la embobinadora  # escalera principal: atras-derecha
 R_BUB = 0.36         # radio de la burbuja estabilizada
 LAYFLAT = math.pi * R_BUB / 2  # semi-ancho de la lamina aplanada
+
+
+def stair(bot, top, width, tag=""):
+    """Escalera metalica delgada: largueros de platina, peldanos planos
+    (reposapies) y pasamanos de tubo a ambos lados."""
+    bot, top = Vector(bot), Vector(top)
+    run = Vector((top.x - bot.x, top.y - bot.y, 0))
+    d = run.normalized()
+    side = Vector((-d.y, d.x, 0)) * (width / 2)
+    rise = top.z - bot.z
+    for sg in (-1, 1):
+        o = side * sg
+        beam(f"Larguero{tag}", bot + o, top + o, 0.012, M["negro"], t2=0.13)
+        hb = bot + o + Vector((0, 0, 0.90))
+        ht = top + o + Vector((0, 0, 1.00))
+        beam(f"Pasamano{tag}", hb, ht, 0.032, M["negro"], round_=True)
+        beam(f"Pasamano{tag}", ht, ht + d * 0.35, 0.032, M["negro"], round_=True)
+        for f in (0.06, 0.5, 0.94):
+            p_ = bot.lerp(top, f) + o
+            beam(f"ParantePasamano{tag}", p_, p_ + Vector((0, 0, 0.92 + 0.08 * f)), 0.025, M["negro"], round_=True)
+    n = max(4, round(rise / 0.25))
+    ang = math.atan2(d.y, d.x)
+    for i in range(1, n):
+        p_ = bot.lerp(top, i / n)
+        # peldano plano horizontal (chapa estriada) con pestana delantera
+        st = box(f"Peldano{tag}", (0.20, width - 0.02, 0.012), (0, 0, 0), M["negro"])
+        st.location = p_ + d * 0.03
+        st.rotation_euler = (0, 0, ang)
+        lip = box(f"PestanaPeldano{tag}", (0.012, width - 0.02, 0.04), (0, 0, 0), M["negro"])
+        lip.location = p_ + d * (0.03 - 0.10) + Vector((0, 0, -0.014))
+        lip.rotation_euler = (0, 0, ang)
+    for sg in (-1, 1):
+        box(f"Pie{tag}", (0.10, 0.06, 0.012), bot + side * sg + Vector((0, 0, 0.006)), M["negro"])
 
 
 # ---------------------------------------------------------------------------
@@ -332,13 +367,8 @@ def upper_tower():
         for sy in (-1, 1):
             box("ParanteSup", (0.035, 0.035, 0.95), (x1, sy * 0.46, MZ + 0.475), M["negro"])
             box("ParanteSup", (0.035, 0.035, 0.95), (x0, sy * 0.46, MZ + 0.475), M["negro"])
-    # escalera de gato desde la plataforma principal a la plataforma superior derecha
-    lx0, lx1 = fx + 0.15, fx + 0.55
-    for x in (lx0, lx1):
-        beam("LargueroSup", (x, 0.95, PZ), (x, 0.50, MZ), 0.04, M["negro"], t2=0.08)
-    for i in range(1, 8):
-        f = i / 8
-        box("PeldanoSup", (lx1 - lx0, 0.04, 0.03), ((lx0 + lx1) / 2, 0.95 - 0.45 * f, PZ + (MZ - PZ) * f), M["negro"])
+    # escalera metalica desde la plataforma principal a la plataforma superior derecha
+    stair(((fx + 0.36), 1.05, PZ), ((fx + 0.36), 0.42, MZ), 0.40, tag="Sup")
     # portico superior alto
     beam("PorticoSup", (-fx, -fy, top + 0.02), (fx, -fy, top + 0.02), 0.10, M["blanco"])
 
@@ -419,25 +449,30 @@ def bubble():
         (-0.48, PZ + 0.40),
         (-0.50, PZ - 0.32),
         (-0.62, PZ - 0.42),
-        (-1.98, 2.22),
-        (-2.06, 2.16),
-        (-2.12, 1.80),
-        (-2.30, 1.18),
-        (-2.62, 1.05),
-        (-2.92, 1.14),
-        (-3.20, 1.00),
-        (-3.55, 1.06),
-        (-3.82, 0.98),
-        (-4.12, 1.01),
-        (-4.45, 0.95),
-        (-4.88, 1.08),
+        (WC + 0.14, 1.80),
+        (WC + 0.06, 1.74),
+        (WC + 0.02, 1.30),
+        (WC, 1.06),
     ]
+    # al llegar al centro la manga aplanada se corta por los bordes y cada
+    # hoja va a una estacion: delantera (-Y) y trasera (+Y)
+    ramas = []
+    for sg, nombre in ((-1, "LaminaDelantera"), (1, "LaminaTrasera")):
+        ramas.append((nombre, [(WC, 1.06), (WC + sg * 0.30, 0.96), (WC + sg * 0.52, 0.89),
+                               (WC + sg * 0.80, 0.82), (WC + sg * 1.10, 0.78), (WC + sg * 1.22, 0.86)]))
     verts, faces = [], []
     for (y, z) in path:
         verts += [(-w, y, z), (w, y, z)]
     for i in range(len(path) - 1):
         faces.append((2 * i, 2 * i + 1, 2 * i + 3, 2 * i + 2))
     mesh_from("Lamina", verts, faces, M["film_doble"], smooth=True)
+    for nombre, pth in ramas:
+        vv, ff = [], []
+        for (y, z) in pth:
+            vv += [(-w, y, z), (w, y, z)]
+        for i in range(len(pth) - 1):
+            ff.append((2 * i, 2 * i + 1, 2 * i + 3, 2 * i + 2))
+        mesh_from(nombre, vv, ff, M["film"], smooth=True)
     grupo("11_Rodillo_Bajo_Plataforma")
     # rodillo guia bajo la plataforma
     cyl("RodilloPlataforma", 0.05, 2 * 0.62, (0, -0.56, PZ - 0.37), M["acero"], axis="X")
@@ -579,49 +614,32 @@ def control_panel():
 # ---------------------------------------------------------------------------
 def ladder():
     grupo("19_Escalera")
-    y0, y1 = LAD_Y
-    top = Vector((PX + 0.02, 0, PZ + 0.02))
-    bot = Vector((PX + 0.85, 0, 0.0))
-    for y in (y0, y1):
-        beam("Larguero", (bot.x, y, bot.z), (top.x, y, top.z), 0.05, M["negro"], t2=0.12)
-        # pasamanos que sube por encima de la plataforma
-        beam("Pasamano", (bot.x + 0.06, y, 0.95), (top.x + 0.06, y, top.z + 0.95), 0.035, M["negro"])
-        beam("Pasamano", (top.x + 0.06, y, top.z + 0.95), (top.x - 0.05, y, top.z + 1.05), 0.035, M["negro"])
-        beam("ParantePasamano", (top.x + 0.04, y, top.z), (top.x + 0.06, y, top.z + 0.95), 0.035, M["negro"])
-    n = 11
-    for i in range(1, n + 1):
-        p = bot.lerp(top, i / (n + 0.4))
-        box("Peldano", (0.16, y1 - y0, 0.03), (p.x, (y0 + y1) / 2, p.z), M["negro"])
-    # ruedas/topes al pie
-    for y in (y0, y1):
-        box("Pie", (0.12, 0.06, 0.03), (bot.x, y, 0.015), M["goma"])
+    # escalera metalica principal (lado derecho, atras): baja hacia +X
+    yc = (LAD_Y[0] + LAD_Y[1]) / 2
+    stair((PX + 1.55, yc, 0.0), (PX + 0.02, yc, PZ), LAD_Y[1] - LAD_Y[0] - 0.04)
 
 
 # ---------------------------------------------------------------------------
 # Embobinadora (frente)
 # ---------------------------------------------------------------------------
 def winder():
-    grupo("20_Embobinadora")
+    grupo("20_Embobinadora_Doble")
     hw = 0.72
-    ya, yb = -2.00, -4.95          # fondo (portico) y frente
-    # largueros de base y travesanos
-    for sx in (-1, 1):
-        box("LargueroBase", (0.12, ya - yb + 0.2, 0.12), (sx * hw, (ya + yb) / 2, 0.06), M["blanco"], 0.005)
-        box("Pie", (0.16, 0.16, 0.02), (sx * hw, ya + 0.05, 0.01), M["blanco"])
-        box("Pie", (0.16, 0.16, 0.02), (sx * hw, yb + 0.20, 0.01), M["blanco"])
-    for y in (ya + 0.1, (ya + yb) / 2, yb + 0.3):
-        cyl("Travesano", 0.045, 2 * hw, (0, y, 0.20), M["blanco"], axis="X")
-    # placas laterales con ventanas rectangulares
-    prof = [(ya, 0.12), (yb + 0.35, 0.12), (yb - 0.05, 0.50), (yb + 0.25, 1.10),
-            (-3.30, 1.22), (-2.35, 1.28), (ya, 1.28)]
+    # placas laterales: bajas en los extremos (estaciones) y altas al centro (portico)
+    prof = [(WL, 0.40), (WL - 0.20, 0.12), (-WL + 0.20, 0.12), (-WL, 0.40), (-WL + 0.10, 0.80),
+            (-0.55, 0.95), (-0.14, 1.82), (0.14, 1.82), (0.55, 0.95), (WL - 0.10, 0.80)]
     cutters = []
-    for k, yy in enumerate((-2.45, -2.95, -3.45, -3.95, -4.40)):
-        c = box("Ventana", (0.3, 0.28, 0.22), (0, yy, 0.42), None)
+    for u in (-0.95, -0.55, 0.55, 0.95):
+        c = box("Ventana", (0.3, 0.24, 0.20), (0, WC + u, 0.42), None)
+        c.hide_render = c.hide_viewport = True
+        cutters.append(c)
+    for u, z in ((-0.20, 1.35), (0.20, 1.35), (0.0, 1.05)):
+        c = cyl("Agujero", 0.06, 0.3, (0, WC + u, z), None, axis="X", verts=24)
         c.hide_render = c.hide_viewport = True
         cutters.append(c)
     for sx in (-1, 1):
         x = sx * hw
-        verts = [(x - 0.018, py, pz) for py, pz in prof] + [(x + 0.018, py, pz) for py, pz in prof]
+        verts = [(x - 0.02, WC + u, z) for u, z in prof] + [(x + 0.02, WC + u, z) for u, z in prof]
         n = len(prof)
         faces = [tuple(range(n))[::-1], tuple(range(n, 2 * n))]
         for i in range(n):
@@ -633,57 +651,90 @@ def winder():
             c2.location.x = x
             col.objects.link(c2)
             c2.hide_render = c2.hide_viewport = True
-            md = pl.modifiers.new("Ventana", "BOOLEAN")
+            md = pl.modifiers.new("Corte", "BOOLEAN")
             md.object = c2
             md.operation = "DIFFERENCE"
-        for (py, pz) in [(-2.3, 1.12), (-2.62, 0.98), (-2.92, 1.08), (-3.2, 0.92), (-3.55, 1.0),
-                         (-3.82, 0.84), (-4.12, 0.95), (-4.45, 0.80)]:
-            cyl("Rodamiento", 0.05, 0.05, (x + sx * 0.04, py, pz), M["negro"], axis="X", verts=16)
-    # rodillos (y, z, radio, tipo)
-    rolls = [(-2.30, 1.12, 0.05, "RodilloEmb"), (-2.62, 0.98, 0.06, "RodilloEmb"),
-             (-2.92, 1.08, 0.05, "RodilloEmb"), (-3.20, 0.92, 0.07, "RodilloCromado"),
-             (-3.55, 1.00, 0.05, "RodilloEmb"), (-3.82, 0.84, 0.13, "TamborCromado"),
-             (-4.12, 0.95, 0.05, "RodilloEmb"), (-4.45, 0.80, 0.14, "TamborCromado"),
-             (-4.20, 0.55, 0.05, "RodilloEmb")]
-    for py, pz, r, nm in rolls:
-        cyl(nm, r, 2 * hw - 0.04, (0, py, pz), M["cromo"], axis="X")
-    # ejes de bobinado al frente (dos estaciones) con mandriles
-    for (py, pz) in ((-4.85, 0.95), (-4.92, 0.36)):
-        cyl("EjeBobinado", 0.04, 2 * hw + 0.55, (0, py, pz), M["acero"], axis="X")
+        for u in (-WL + 0.25, 0.0, WL - 0.25):
+            box("Pie", (0.14, 0.18, 0.12), (x, WC + u, 0.06), M["blanco"], 0.005)
+        for u, z in ((-0.5, 0.82), (0.5, 0.82), (-0.8, 0.75), (0.8, 0.75), (-0.3, 0.92), (0.3, 0.92),
+                     (0.0, 1.06), (0.06, 1.74)):
+            cyl("Rodamiento", 0.045, 0.05, (x + sx * 0.04, WC + u, z), M["negro"], axis="X", verts=16)
+    for u in (-WL + 0.3, -0.6, 0.6, WL - 0.3):
+        cyl("Travesano", 0.04, 2 * hw, (0, WC + u, 0.22), M["blanco"], axis="X")
+    # portico central: travesano superior, rodillo negro arriba y rodillos de entrada
+    box("TravesanoPortico", (2 * hw + 0.04, 0.12, 0.10), (0, WC, 1.86), M["blanco"], 0.005)
+    cyl("RodilloSuperior", 0.05, 2 * hw - 0.06, (0, WC + 0.06, 1.98), M["goma"], axis="X")
+    for sx in (-1, 1):
+        box("SoporteRodilloSup", (0.04, 0.08, 0.14), (sx * (hw - 0.05), WC + 0.06, 1.93), M["blanco"])
+    cyl("RodilloEntrada", 0.05, 2 * hw - 0.06, (0, WC + 0.06, 1.74), M["cromo"], axis="X")
+    cyl("BarraExpansora", 0.03, 2 * hw - 0.06, (0, WC + 0.02, 1.30), M["negro"], axis="X")
+    cyl("RodilloCentral", 0.06, 2 * hw - 0.06, (0, WC, 1.00), M["cromo"], axis="X")
+    # cuchillas que cortan los bordes de la manga (separan las dos hojas)
+    for sx in (-1, 1):
+        box("PortaCuchilla", (0.05, 0.10, 0.12), (sx * (LAYFLAT + 0.01), WC - 0.10, 1.14), M["aluminio"], 0.004)
+    beam("BarraCuchillas", (-hw, WC - 0.10, 1.20), (hw, WC - 0.10, 1.20), 0.03, M["acero"], round_=True)
+    # rodillos de cada lado (simetricos hacia las dos estaciones)
+    for sg in (-1, 1):
+        cyl("RodilloGoma", 0.055, 2 * hw - 0.06, (0, WC + sg * 0.30, 0.92), M["goma"], axis="X")
+        cyl("RodilloCromado", 0.06, 2 * hw - 0.06, (0, WC + sg * 0.52, 0.82), M["cromo"], axis="X")
+        cyl("RodilloCromado", 0.06, 2 * hw - 0.06, (0, WC + sg * 0.80, 0.75), M["cromo"], axis="X")
+
+    # dos estaciones de bobinado: tambor de friccion + eje con bobina apoyada
+    for sg, est in ((-1, "Delantera"), (1, "Trasera")):
+        grupo(f"21_Estacion_Bobinado_{est}")
+        yt = WC + sg * 1.10
+        cyl(f"Tambor{est}", 0.15, 2 * hw - 0.04, (0, yt, 0.62), M["cromo"], axis="X", verts=64)
         for sx in (-1, 1):
-            cyl("Mandril", 0.06, 0.08, (sx * (hw + 0.12), py, pz), M["negro"], axis="X", verts=6)
-            cyl("Mandril", 0.05, 0.05, (sx * (hw + 0.22), py, pz), M["acero"], axis="X", verts=12)
-    # brazos delanteros inclinados
-    for sx in (-1, 1):
-        beam("BrazoFrontal", (sx * (hw + 0.05), yb + 0.25, 0.70), (sx * (hw + 0.05), yb - 0.15, 1.00),
-             0.05, M["blanco"], t2=0.10)
-    # motorreductor azul (lado derecho) y servomotores negros (lado izquierdo)
-    xr = hw + 0.10
-    box("ReductorEmb", (0.16, 0.22, 0.22), (xr, -3.20, 0.62), M["azul"], 0.015)
-    cyl("MotorEmb", 0.09, 0.30, (xr + 0.02, -3.20, 0.88), M["azul"], bevel=0.008)
-    cyl("TapaMotorEmb", 0.09, 0.05, (xr + 0.02, -3.20, 1.05), M["azul"], bevel=0.008)
-    xl = -(hw + 0.12)
-    for yy in (-3.05, -3.55):
-        box("ReductorServo", (0.16, 0.18, 0.18), (xl, yy, 0.40), M["negro"], 0.012)
-        cyl("Servomotor", 0.08, 0.30, (xl, yy + 0.22, 0.40), M["negro"], axis="Y", bevel=0.01)
-    # portico trasero con rodillos de entrada
-    for sx in (-1, 1):
-        box("PosteGuia", (0.10, 0.10, 1.05), (sx * hw, ya, 1.28 + 0.52), M["blanco"], 0.004)
-    box("TravesanoGuia", (2 * hw + 0.10, 0.10, 0.10), (0, ya, 2.30), M["blanco"], 0.004)
-    cyl("RodilloGuia", 0.045, 2 * hw - 0.06, (0, ya + 0.04, 2.18), M["cromo"], axis="X")
-    cyl("RodilloGuia", 0.045, 2 * hw - 0.06, (0, ya - 0.08, 1.80), M["cromo"], axis="X")
-    cyl("BarraGuia", 0.03, 2 * hw - 0.06, (0, ya - 0.06, 1.55), M["negro"], axis="X")
-    # caja de control blanca sobre un poste (lado izquierdo, atras)
-    box("PosteCaja", (0.06, 0.06, 0.55), (-(hw + 0.18), ya - 0.30, 1.55), M["blanco"])
-    box("CajaControl", (0.45, 0.26, 0.42), (-(hw + 0.18), ya - 0.30, 2.02), M["blanco"], 0.01)
-    fy = ya - 0.30 - 0.135
+            cyl(f"EjeTambor{est}", 0.035, 0.12, (sx * (hw + 0.06), yt, 0.62), M["acero"], axis="X")
+            cyl(f"TapaRodamientoTambor{est}", 0.07, 0.03, (sx * (hw + 0.035), yt, 0.62), M["negro"], axis="X")
+        ys, zs, rr = WC + sg * 1.36, 0.88, 0.20 if sg < 0 else 0.14
+        # la bobina descansa sobre el tambor (centro desplazado segun su radio)
+        d = 0.15 + rr
+        ang = math.atan2(zs - 0.62, abs(ys - yt))
+        yb_ = yt + sg * d * math.cos(ang)
+        zb_ = 0.62 + d * math.sin(ang)
+        cyl(f"Bobina{est}", rr, 2 * LAYFLAT + 0.02, (0, yb_, zb_), M["bobina"], axis="X", verts=96, bevel=0.01)
+        cyl(f"Nucleo{est}", 0.045, 2 * LAYFLAT + 0.08, (0, yb_, zb_), M["carton"], axis="X")
+        cyl(f"EjeBobinado{est}", 0.035, 2 * hw + 0.60, (0, yb_, zb_), M["acero"], axis="X")
+        for sx in (-1, 1):
+            cyl(f"Mandril{est}", 0.06, 0.07, (sx * (hw + 0.13), yb_, zb_), M["negro"], axis="X", verts=6)
+            cyl(f"Mandril{est}", 0.045, 0.05, (sx * (hw + 0.22), yb_, zb_), M["acero"], axis="X", verts=12)
+            # brazo de apoyo del eje (horquilla al extremo de la placa)
+            beam(f"Horquilla{est}", (sx * (hw + 0.05), WC + sg * (WL - 0.15), 0.40),
+                 (sx * (hw + 0.05), yb_, zb_ - 0.06), 0.05, M["blanco"], t2=0.08)
+        # brazo pivotante neumatico que presiona la bobina
+        for sx in (-1, 1):
+            beam(f"CilindroPresion{est}", (sx * (hw + 0.09), WC + sg * 0.70, 0.35),
+                 (sx * (hw + 0.09), yb_ - sg * 0.05, zb_ - 0.12), 0.04, M["aluminio"], round_=True)
+
+    grupo("20_Embobinadora_Doble")
+    # caja de control sobre el poste izquierdo del portico, botonera hacia el costado
+    xcb = -hw - 0.02
+    box("CajaControl", (0.30, 0.48, 0.44), (xcb, WC, 2.10), M["blanco"], 0.01)
+    fx_ = xcb - 0.155
     for r in range(3):
         for c in range(4):
-            cyl("Pulsador", 0.016, 0.02, (-(hw + 0.18) - 0.135 + c * 0.09, fy, 2.10 - r * 0.07),
-                M["rojo"], axis="Y", verts=16)
-    box("Contador", (0.12, 0.005, 0.04), (-(hw + 0.18), fy, 2.18), M["rojo_led"])
+            cyl("Pulsador", 0.017, 0.02, (fx_, WC - 0.135 + c * 0.09, 2.15 - r * 0.07), M["rojo"], axis="X", verts=16)
+    cyl("ParadaEmergencia", 0.03, 0.03, (fx_ - 0.005, WC - 0.135, 2.24), M["rojo"], axis="X", verts=24)
+    box("Contador", (0.005, 0.12, 0.04), (fx_, WC + 0.10, 2.25), M["rojo_led"])
+    # unidad de mantenimiento neumatica (filtro-regulador) en la placa izquierda
+    for k in range(3):
+        box("UnidadNeumatica", (0.06, 0.06, 0.12), (-hw - 0.06, WC + 0.18 + k * 0.07, 1.22), M["aluminio"], 0.004)
+    curve_tube("MangueraNeumatica", [Vector((-hw - 0.06, WC + 0.25, 1.15)), Vector((-hw - 0.15, WC + 0.3, 0.8)),
+                                     Vector((-hw - 0.10, WC + 0.7, 0.5))], 0.008, M["azul"])
+    # servomotores negros con reductores en linea (lado izquierdo, abajo)
+    xl = -(hw + 0.13)
+    for k, u in enumerate((-0.55, 0.10)):
+        box("ReductorServo", (0.18, 0.20, 0.20), (xl, WC + u, 0.42), M["negro"], 0.012)
+        cyl("Servomotor", 0.085, 0.34, (xl, WC + u + 0.28, 0.42), M["negro"], axis="Y", bevel=0.01)
+        box("ConectorServo", (0.05, 0.08, 0.06), (xl - 0.06, WC + u + 0.40, 0.48), M["negro"], 0.005)
+    # motorreductor azul (lado derecho)
+    xr = hw + 0.10
+    box("ReductorEmb", (0.16, 0.22, 0.22), (xr, WC + 0.35, 0.60), M["azul"], 0.015)
+    cyl("MotorEmb", 0.09, 0.30, (xr + 0.02, WC + 0.35, 0.86), M["azul"], bevel=0.008)
+    cyl("TapaMotorEmb", 0.09, 0.05, (xr + 0.02, WC + 0.35, 1.03), M["azul"], bevel=0.008)
     # canaleta flexible de cables desde la torre
-    curve_tube("CanaletaCables", [Vector((-(hw + 0.18), ya - 0.30, 2.23)), Vector((-0.6, -1.4, 2.6)),
+    curve_tube("CanaletaCables", [Vector((xcb, WC + 0.24, 2.25)), Vector((-0.6, -1.6, 2.7)),
                                   Vector((-0.2, -0.9, PZ - 0.35))], 0.03, M["gris_panel"])
 
 
@@ -722,6 +773,9 @@ NOMBRES = {
     "PlataformaSup": "Plataforma_Superior", "CajonPlataformaSup": "Cajon_Plataforma_Superior",
     "BarandaSup": "Baranda_Plataforma_Superior", "ParanteSup": "Parante_Plataforma_Superior",
     "LargueroSup": "Larguero_Escalera_Superior", "PeldanoSup": "Peldano_Escalera_Superior",
+    "PasamanoSup": "Pasamano_Escalera_Superior", "ParantePasamanoSup": "Parante_Pasamano_Escalera_Superior",
+    "PestanaPeldanoSup": "Pestana_Peldano_Escalera_Superior", "PieSup": "Pie_Escalera_Superior",
+    "PestanaPeldano": "Pestana_Peldano_Escalera",
     "PorticoSup": "Portico_Superior", "CarroCabezal": "Carro_Cabezal", "PataCarro": "Pata_Carro_Cabezal",
     "RuedaCarro": "Rueda_Carro_Cabezal", "CajaControlCabezal": "Caja_Control_Cabezal",
     "PataBancada": "Pata_Bancada", "ZocaloBancada": "Zocalo_Bancada", "MangueraRollo": "Manguera_Enrollada",
@@ -731,7 +785,24 @@ NOMBRES = {
     "ReductorEmb": "Reductor_Embobinadora", "MotorEmb": "Motor_Embobinadora",
     "TapaMotorEmb": "Tapa_Motor_Embobinadora", "ReductorServo": "Reductor_Servomotor",
     "Servomotor": "Servomotor", "TravesanoGuia": "Travesano_Portico_Embobinadora",
-    "PosteCaja": "Poste_Caja_Control", "CanaletaCables": "Canaleta_Flexible_Cables",
+    "PosteCaja": "Poste_Caja_Control",
+    "TravesanoPortico": "Travesano_Portico_Central", "RodilloSuperior": "Rodillo_Superior_Portico",
+    "SoporteRodilloSup": "Soporte_Rodillo_Superior", "BarraExpansora": "Barra_Expansora",
+    "RodilloCentral": "Rodillo_Central", "PortaCuchilla": "Porta_Cuchilla_Corte_Bordes",
+    "BarraCuchillas": "Barra_Cuchillas", "RodilloGoma": "Rodillo_Goma",
+    "ParadaEmergencia": "Parada_Emergencia", "UnidadNeumatica": "Unidad_Neumatica_FRL",
+    "MangueraNeumatica": "Manguera_Neumatica", "ConectorServo": "Conector_Servomotor",
+    "LaminaDelantera": "Lamina_Hoja_a_Estacion_Delantera", "LaminaTrasera": "Lamina_Hoja_a_Estacion_Trasera",
+    "TamborDelantera": "Tambor_Friccion_Delantero", "TamborTrasera": "Tambor_Friccion_Trasero",
+    "EjeTamborDelantera": "Eje_Tambor_Delantero", "EjeTamborTrasera": "Eje_Tambor_Trasero",
+    "TapaRodamientoTamborDelantera": "Tapa_Rodamiento_Tambor_Delantero",
+    "TapaRodamientoTamborTrasera": "Tapa_Rodamiento_Tambor_Trasero",
+    "BobinaDelantera": "Bobina_Estacion_Delantera", "BobinaTrasera": "Bobina_Estacion_Trasera",
+    "NucleoDelantera": "Nucleo_Carton_Delantero", "NucleoTrasera": "Nucleo_Carton_Trasero",
+    "EjeBobinadoDelantera": "Eje_Bobinado_Delantero", "EjeBobinadoTrasera": "Eje_Bobinado_Trasero",
+    "MandrilDelantera": "Mandril_Delantero", "MandrilTrasera": "Mandril_Trasero",
+    "HorquillaDelantera": "Horquilla_Eje_Delantero", "HorquillaTrasera": "Horquilla_Eje_Trasero",
+    "CilindroPresionDelantera": "Cilindro_Presion_Delantero", "CilindroPresionTrasera": "Cilindro_Presion_Trasero", "CanaletaCables": "Canaleta_Flexible_Cables",
     ("20", "PosteGuia"): "Poste_Portico_Embobinadora", ("20", "RodilloGuia"): "Rodillo_Portico_Embobinadora",
     ("20", "BarraGuia"): "Barra_Portico_Embobinadora", ("20", "Pie"): "Pie_Embobinadora",
     ("20", "Pulsador"): "Pulsador_Caja_Control",
