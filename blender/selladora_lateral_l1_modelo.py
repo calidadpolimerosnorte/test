@@ -1,7 +1,7 @@
 """
 Modelo Blender limpio de la Selladora Lateral L1 (maquina de bolsas).
 
-Solo el vehiculo: sin materiales, sin animacion, sin piso, luces ni camaras.
+Solo la maquina: sin materiales, sin animacion, sin piso, luces ni camaras.
 Cada pieza tiene nombre descriptivo y esta agrupada por sistema.
 Medidas aproximadas (m): ~4.8 m de largo (bastidor trasero con desbobinador, cuerpo, sellado y salida).
 La linea avanza hacia -Y (salida de bolsas al frente); el piso en z=0.

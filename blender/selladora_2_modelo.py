@@ -1,7 +1,7 @@
 """
 Modelo Blender limpio de la Selladora (maquina de bolsas con desbobinador doble), sin mesa.
 
-Solo el vehiculo: sin materiales, sin animacion, sin piso, luces ni camaras.
+Solo la maquina: sin materiales, sin animacion, sin piso, luces ni camaras.
 Cada pieza tiene nombre descriptivo y esta agrupada por sistema.
 Medidas aproximadas (m): linea de ~6.6 m (desbobinador doble, alimentacion, cuerpo y sellado).
 La linea avanza hacia -Y (salida de bolsas al frente); el piso en z=0.

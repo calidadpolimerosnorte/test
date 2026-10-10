@@ -1,10 +1,10 @@
 """
 Modelo Blender limpio de la Cortadora Nº 1 (corte de film/bolsas en rollo).
 
-Solo el vehiculo: sin materiales, sin animacion, sin piso, luces ni camaras.
+Solo la maquina: sin materiales, sin animacion, sin piso, luces ni camaras.
 Cada pieza tiene nombre descriptivo y esta agrupada por sistema.
 Medidas aproximadas (m): ~2.3 m de largo x 2.1 m de ancho (desbobinador doble, cabezal de corte, gabinete).
-La linea avanza hacia -Y (salida de bolsas al frente); el piso en z=0.
+El piso en z=0.
 
 Uso:
     python3 blender/cortadora_1_modelo.py     # con bpy de PyPI

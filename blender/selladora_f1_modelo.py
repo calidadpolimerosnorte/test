@@ -1,7 +1,7 @@
 """
 Modelo Blender limpio de la Selladora de Fondo F1 (maquina de bolsas) con la mesa de trabajo.
 
-Solo el vehiculo: sin materiales, sin animacion, sin piso, luces ni camaras.
+Solo la maquina: sin materiales, sin animacion, sin piso, luces ni camaras.
 Cada pieza tiene nombre descriptivo y esta agrupada por sistema.
 Medidas aproximadas (m): linea de ~6.4 m (desbobinador, cuerpo, sellado, transportador) + mesa.
 La linea avanza hacia -Y (salida de bolsas al frente); el piso en z=0.

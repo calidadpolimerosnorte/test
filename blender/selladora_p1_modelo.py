@@ -1,7 +1,7 @@
 """
 Modelo Blender limpio de la Selladora P1 (linea larga de bolsas con cierre).
 
-Solo el vehiculo: sin materiales, sin animacion, sin piso, luces ni camaras.
+Solo la maquina: sin materiales, sin animacion, sin piso, luces ni camaras.
 Cada pieza tiene nombre descriptivo y esta agrupada por sistema.
 Medidas aproximadas (m): ~22 m de largo. Entrada negra (desbobinador, torre de acumulacion,
 corte/plegado), tramo de acero inoxidable (sellado, cierre, estaciones transversales, troquel) y salida.
