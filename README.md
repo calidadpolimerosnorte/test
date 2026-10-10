@@ -5,6 +5,13 @@ Modelo procedural en Blender de la línea de extrusión de película soplada (bl
 
 ## Contenido
 
+- `blender/comun.py` – funciones comunes (primitivas con nombre, colecciones, ruedas, guardar) usadas por los modelos siguientes.
+- `blender/personas_modelo.blend` – **8 personas articuladas**: hombre y mujer × (camisa celeste manga corta + jean / polo plomo + jean) × (casco / cofia). Cada una tiene su esqueleto (Armature) con huesos de cadera, columna, pecho, cuello, cabeza, clavículas, brazos, antebrazos, manos, muslos, piernas y pies; las piezas están emparentadas a su hueso, así que se posan en Pose Mode. Son los únicos modelos con colores. Se genera con `python3 blender/personas_modelo.py`.
+- `blender/autos_modelo.blend` – **5 autos genéricos** (sedán, hatchback, SUV, pickup con caja y barra antivuelco, minivan con puerta corrediza), cada uno en su colección. Se genera con `python3 blender/autos_modelo.py`.
+- `blender/camion_modelo.blend` y `blender/camion_trailer_modelo.blend` – **camión rígido con furgón** y **tracto con semirremolque de 13.6 m** (quinta rueda, patas de apoyo, 3 ejes dobles). Se generan con `python3 blender/camiones_modelo.py`.
+- `blender/montacargas_modelo.blend` – **montacargas contrapesado a GLP**: mástil, cadenas, horquillas, techo protector, asiento y mandos. Se genera con `python3 blender/montacargas_modelo.py`.
+- `blender/parihuelas_racks_modelo.blend` – **rack selectivo de 3 cuerpos** (parantes azules, vigas plomas) con parihuelas de madera y de plástico cargadas con sacos, más parihuelas en el piso y una ruma de vacías. Se genera con `python3 blender/parihuelas_racks_modelo.py`.
+- `blender/escritorio_laptop_modelo.blend` – **escritorio con laptop**, mouse, lámpara, taza, cuaderno, cajonera y silla de oficina. Se genera con `python3 blender/escritorio_laptop_modelo.py`.
 - `blender/laminadora_modelo.blend` – **Laminadora** de dos láminas: pasillo central con la bobina 1 y la bobina final, recubrimiento en el extremo izquierdo, laminado con la bobina 2 exterior en el extremo derecho. Se genera con `python3 blender/laminadora_modelo.py`.
 - `blender/impresora_ci6_modelo.blend` – **Impresora flexográfica de tambor central CHCI6-800J** (6 colores) con plataforma, escalera, desbobinador/rebobinador, columna de mando y gabinetes. Se genera con `python3 blender/impresora_ci6_modelo.py`.
 - `blender/selladora_p1_modelo.blend` – **Selladora P1** (línea larga de ~22 m): entrada negra con desbobinador, torre de acumulación y corte/plegado; tramo inoxidable con vigas de sellado, aplicador de cierre, 8 estaciones transversales y troquel; salida con apilador y tablero. Se genera con `python3 blender/selladora_p1_modelo.py`.

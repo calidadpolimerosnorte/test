@@ -1,2 +1,3 @@
 renders/cuadros_*/
 *.blend1
+__pycache__/
