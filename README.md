@@ -5,6 +5,7 @@ Modelo procedural en Blender de la línea de extrusión de película soplada (bl
 
 ## Contenido
 
+- `blender/selladora_2_modelo.blend` – **Selladora con desbobinador doble** (sin mesa): mismo formato, piezas nombradas por grupos, sin materiales. Se genera con `python3 blender/selladora_2_modelo.py`.
 - `blender/selladora_f1_modelo.blend` – **Selladora de fondo F1** (máquina de bolsas) con su mesa de trabajo: mismo formato, piezas nombradas por grupos, sin materiales. Se genera con `python3 blender/selladora_f1_modelo.py`.
 - `blender/vehiculo_pickup_modelo.blend` – **Camioneta pickup doble cabina** (tipo JMC Vigus EV): mismo formato, piezas nombradas por grupos, sin materiales. Se genera con `python3 blender/vehiculo_pickup_modelo.py`.
 - `blender/vehiculo_suv_modelo.blend` – **SUV compacto** (tipo Chevrolet Tracker): mismo formato, piezas nombradas por grupos, sin materiales. Se genera con `python3 blender/vehiculo_suv_modelo.py`.
