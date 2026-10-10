@@ -776,10 +776,12 @@ def persona(p, X, col, W, base):
             pts.append(q.copy())
         return pts
 
-    if gorro == "casco" or p["peinado"] == "corto":
+    if gorro in ("casco", "ninguno") or p["peinado"] == "corto":
         estilo = p["peinado"]
         if estilo == "corto":
             n, largo, segs = 45000, 0.035, 6
+        elif estilo == "ondulado":
+            n, largo, segs = 70000, 0.085, 12
         elif estilo == "afro":
             n, largo, segs = 60000, 0.014, 7
         elif estilo == "cola":
@@ -812,6 +814,15 @@ def persona(p, X, col, W, base):
                         v = Vector((0.8, -0.6, -0.3))
                     return v.normalized() * 0.8
                 pts = crecer(r0, n0, largo * rng.uniform(0.6, 1.1), segs, peine, 0.35, 0.05, 0.0015 + rng.random() * 0.0035, 0.15, True)
+            elif estilo == "ondulado":     # pelo ondulado con volumen, hacia atras y a los lados, mechones sobre la frente
+                def peine(q):
+                    v = q - craneo
+                    v.z *= 0.5
+                    if q.y < craneo.y - 0.05:
+                        v = Vector((0.5 * (1 if q.x > craneo.x else -1), -0.5, 0.2))
+                    return v.normalized() * 0.7
+                capa = 0.004 + rng.random() * 0.016
+                pts = crecer(r0, n0, largo * rng.uniform(0.5, 1.0), segs, peine, 0.45, 0.22, capa, 0.5)
             elif estilo in ("afro", "moño_afro"):
                 def peine(q):
                     return Vector((0, 0, 0))
@@ -912,7 +923,7 @@ def persona(p, X, col, W, base):
         a_hueso(pe, arm, "head")
     a_hueso(ceja, arm, "head")
     if hebras:
-        cab = curvas(f"{tag}_Cabello", hebras, 0.00011 if p["peinado"] not in ("afro", "moño_afro") else 0.00013, col, pelo_m)
+        cab = curvas(f"{tag}_Cabello", hebras, 0.00016 if p["peinado"] == "ondulado" else 0.00011 if p["peinado"] not in ("afro", "moño_afro") else 0.00013, col, pelo_m)
         a_hueso(cab, arm, "head")
     # barba incipiente para algunos hombres
     if not mujer and p["edad"] > 35:
@@ -1007,7 +1018,7 @@ def persona(p, X, col, W, base):
         col.objects.link(bs)
         cu.materials.append(susp_m)
         a_hueso(bs, arm, "head")
-    else:
+    elif gorro == "cofia":
         cofia_m = bpy.data.materials.get("Cofia") or mat_tela("Cofia", (0.80, 0.82, 0.86), escala=3000, rough=0.95, sheen=0.8)
         bmc = bmesh.new()
         seg_u, seg_v = 64, 16
