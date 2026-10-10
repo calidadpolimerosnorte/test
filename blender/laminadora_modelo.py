@@ -3,7 +3,7 @@ Modelo Blender limpio de la Laminadora (laminado sin solvente).
 
 Solo la maquina: sin materiales, sin animacion, sin piso, luces ni camaras.
 Cada pieza tiene nombre descriptivo y esta agrupada por sistema.
-Medidas aproximadas (m): ~6.3 de largo x 2.3 de ancho x ~2.75 de alto. Eje largo en X, frente hacia -Y.
+Medidas aproximadas (m): ~5.2 de largo (con la bobina 2 que sobresale) x 2.3 de ancho x ~2.75 de alto. Eje largo en X, frente hacia -Y.
 Une dos laminas: la 1 sale de la bobina del pasillo central, pasa por los rodillos y el recubrimiento del
 extremo izquierdo (exterior), cruza por arriba y se junta en el laminado del extremo derecho con la lamina 2
 (bobina exterior derecha); la lamina final vuelve y se rebobina en el pasillo.
@@ -170,7 +170,8 @@ def curve_tube(name, pts, radius, res=8):
 # Eje largo en X; frente (operador) hacia -Y.
 FY0, FY1 = -1.05, -0.85   # bastidor frontal (pilares)
 BY0, BY1 = 0.85, 1.05     # bastidor trasero
-XL, XR = -2.95, 2.25      # cuerpo principal (sin la unidad de recubrimiento)
+S = 1.55                  # desplazamiento: el bloque de mando queda pegado a la columna derecha
+XL, XR = -2.95 + S, 2.25  # cuerpo principal (sin la unidad de recubrimiento)
 CZ0, CZ1 = 2.05, 2.40     # cubierta superior
 RL = BY0 - FY1            # largo de rodillos entre bastidores (~1.7)
 
@@ -229,14 +230,14 @@ def arm_roll(prefix, xc, z, rr, wall_x):
 # 01 Bastidores: pilares frontales (blancos) y traseros (gris oscuro)
 # ===========================================================================
 grupo("01_Pilares_y_Bastidores")
-xa, yfa = pillar("Pilar_Izquierdo", XL, -2.35)
+xa, yfa = pillar("Pilar_Izquierdo", XL, -2.35 + S)
 box("Panel_Botonera_Vertical", (0.16, 0.014, 0.85), (xa, yfa - 0.004, 1.30))
 for k in range(8):
     for c in range(2):
         cyl("Pulsador_Panel_Izquierdo", 0.014, 0.02, (xa - 0.04 + c * 0.08, yfa - 0.012, 1.62 - k * 0.09), axis="Y",
             verts=12)
 box("Controlador_Digital_Izquierdo", (0.10, 0.014, 0.06), (xa + 0.18, yfa - 0.004, 1.05))
-xb, yfb = pillar("Pilar_Mando_Central", -0.55, 0.55)
+xb, yfb = pillar("Pilar_Mando_Central", -0.55 + S, 0.55 + S)
 box("Panel_Mando_Negro", (0.80, 0.014, 1.15), (xb, yfb - 0.004, 1.30))
 box("Pantalla_HMI", (0.32, 0.016, 0.24), (xb, yfb - 0.010, 1.62))
 for r in range(4):
@@ -248,9 +249,9 @@ for c in range(4):
     cyl("Manometro", 0.04, 0.02, (xb - 0.27 + c * 0.18, yfb - 0.012, 1.22), axis="Y", verts=24)
     cyl("Regulador_Rojo", 0.02, 0.03, (xb - 0.27 + c * 0.18, yfb - 0.015, 1.10), axis="Y", verts=12)
 box("Franja_Panel", (0.70, 0.015, 0.02), (xb, yfb - 0.012, 0.85))
-box("Controlador_Digital_Central", (0.10, 0.014, 0.08), (0.62, FY0 - 0.006, 1.05))
+box("Controlador_Digital_Central", (0.10, 0.014, 0.08), (-0.62 + S, FY0 - 0.006, 1.05))
 xc_, yfc = pillar("Pilar_Derecho", 2.10, 2.25 + 0.10)
-for x0, x1, nm in ((XL, -2.35, "Izquierdo"), (-0.55, 0.55, "Central"), (2.10, 2.35, "Derecho")):
+for x0, x1, nm in ((XL, -2.35 + S, "Izquierdo"), (-0.55 + S, 0.55 + S, "Central"), (2.10, 2.35, "Derecho")):
     pillar(f"Bastidor_Trasero_{nm}", x0, x1, front=False)
 
 # ===========================================================================
@@ -260,15 +261,15 @@ grupo("02_Cubierta_Superior")
 L = 2.35 - XL
 box("Cubierta_Superior_Blanca", (L, BY1 - FY0 + 0.10, CZ1 - CZ0), ((XL + 2.35) / 2, (FY0 + BY1) / 2, (CZ0 + CZ1) / 2),
     bevel=0.08)
-box("Display_LED_Caja", (0.75, 0.04, 0.24), (-1.45, FY0 - 0.065, (CZ0 + CZ1) / 2), bevel=0.03)
+box("Display_LED_Caja", (0.75, 0.04, 0.24), (-1.45 + S, FY0 - 0.065, (CZ0 + CZ1) / 2), bevel=0.03)
 for k in range(2):
-    box("Display_LED_Digitos", (0.25, 0.01, 0.12), (-1.62 + k * 0.34, FY0 - 0.088, (CZ0 + CZ1) / 2 - 0.01))
-box("Franja_Azul_Display", (0.70, 0.01, 0.015), (-1.45, FY0 - 0.088, CZ1 - 0.06))
+    box("Display_LED_Digitos", (0.25, 0.01, 0.12), (-1.62 + S + k * 0.34, FY0 - 0.088, (CZ0 + CZ1) / 2 - 0.01))
+box("Franja_Azul_Display", (0.70, 0.01, 0.015), (-1.45 + S, FY0 - 0.088, CZ1 - 0.06))
 cyl("Soplador_Superior", 0.22, 0.22, (1.20, 0.30, CZ1 + 0.24), axis="X", verts=32)
 cyl("Motor_Soplador", 0.10, 0.28, (1.45, 0.30, CZ1 + 0.24), axis="X", verts=24)
 box("Base_Soplador", (0.60, 0.45, 0.04), (1.30, 0.30, CZ1 + 0.02))
-cyl("Motor_Superior_Izquierdo", 0.09, 0.22, (-1.80, 0.40, CZ1 + 0.13), verts=24)
-box("Ducto_Rectangular_Superior", (0.80, 0.30, 0.25), (-0.40, 0.55, CZ1 + 0.13), bevel=0.01)
+cyl("Motor_Superior_Izquierdo", 0.09, 0.22, (-1.80 + S, 0.40, CZ1 + 0.13), verts=24)
+box("Ducto_Rectangular_Superior", (0.80, 0.30, 0.25), (0.45, 0.55, CZ1 + 0.13), bevel=0.01)
 curve_tube("Codo_Ducto_Blanco", [Vector((XL + 0.15, 0.55, CZ1 + 0.05)), Vector((XL + 0.15, 0.55, CZ1 + 0.35)),
                                  Vector((XL - 0.20, 0.55, CZ1 + 0.45))], 0.09)
 curve_tube("Ducto_Flexible_Bajada", [Vector((1.20, BY1 + 0.10, CZ1 + 0.10)), Vector((1.25, BY1 + 0.25, CZ0 - 0.30)),
@@ -284,8 +285,8 @@ for z in (CZ1 + 0.30, CZ1 + 0.12):
 # 03 Pasillo central: paredes con aberturas, rodillos por dentro, bobinas en voladizo
 # ===========================================================================
 grupo("03_Pasillo_Central")
-AX0, AX1 = -2.35, -0.55      # pasillo entre el bloque izquierdo y el bloque de mando
-SL, SR = -2.65, -0.25        # torres de rodillos (dentro de los bloques, detras de las paredes)
+AX0, AX1 = -2.35 + S, -0.55 + S      # pasillo entre el bloque izquierdo y el bloque de mando
+SL, SR = -2.65 + S, -0.30 + S        # torres de rodillos (dentro de los bloques, detras de las paredes)
 for x, nm, sg in ((AX0, "Izquierda", -1), (AX1, "Derecha", 1)):
     plate_x = x + sg * 0.02
     verts_y = [(FY1, 0.08), (BY0, 0.08), (BY0, CZ0), (FY1, CZ0)]
@@ -313,15 +314,16 @@ box("Pasillo_Fotocelda", (0.08, 0.06, 0.06), (AX1 - 0.10, -0.60, 1.25))
 # 04 Bahia exterior derecha: laminado (union de las dos laminas) y bobina 2
 # ===========================================================================
 grupo("04_Laminado_y_Bobina_2")
-LX = 1.10
+LX = 1.85                     # laminado por dentro, detras del panel de mando
 roller_stack("Laminado", LX, [(1.90, 0.055, "Rodillo_Negro"), (1.72, 0.055, "Rodillo_Negro"),
                               (1.52, 0.075, "Rodillo_Goma_Presion"), (1.36, 0.085, "Rodillo_Cromado_Calefactado"),
                               (1.16, 0.06, "Rodillo_Enfriador"), (0.98, 0.055, "Rodillo_Guia")])
 for sy in (-1, 1):
     box("Laminado_Cilindro_Presion", (0.10, 0.10, 0.22), (LX - 0.15, sy * (RL / 2 - 0.02), 1.70), bevel=0.01)
     box("Laminado_Soporte_Naranja", (0.30, 0.06, 0.12), (LX + 0.10, sy * 0.80, 1.52), bevel=0.01)
-arm_roll("Bobina_2_Exterior", 1.75, 0.62, 0.22, 2.10)
-cyl("Rodillo_Guia_Bobina_2", 0.045, RL, (1.55, (FY1 + BY0) / 2, 1.05), axis="Y")
+# la bobina 2 sobresale por fuera, a la derecha de la columna
+arm_roll("Bobina_2_Exterior", 2.80, 0.62, 0.22, 2.37)
+cyl("Rodillo_Guia_Bobina_2", 0.045, RL, (2.22, (FY1 + BY0) / 2, 1.05), axis="Y")
 
 # ===========================================================================
 # 05 Unidad de recubrimiento (extremo izquierdo, exterior, por donde pasa la lamina 1)
@@ -362,9 +364,9 @@ w = 0.55
 paths = {
     "Lamina_1_Desde_Pasillo": [(AX0 + 0.38, 0.84), (AX0 + 0.08, 0.99), (SL, 1.16), (SL, 1.36), (SL, 1.76),
                                (XL - 0.10, 1.85), (UX0 + 0.16, 1.16), (UX0 + 0.08, 0.81), (UX0 + 0.08, 0.66),
-                               (XL - 0.40, 0.60), (XL + 0.42, CZ1 + 0.30), (LX - 0.30, CZ1 + 0.30), (LX, 1.61)],
-    "Lamina_2_Bobina_Exterior": [(1.75, 0.84), (1.55, 1.10), (LX + 0.08, 1.45)],
-    "Lamina_Final_Laminada": [(LX, 1.28), (LX - 0.10, 0.98), (0.30, 1.95), (SR, 1.96), (SR, 1.40),
+                               (XL - 0.40, 0.60), (XL + 0.42, CZ1 + 0.30), (LX + 0.25, CZ1 + 0.30), (LX + 0.05, 1.61)],
+    "Lamina_2_Bobina_Exterior": [(2.80, 0.84), (2.22, 1.10), (LX + 0.08, 1.45)],
+    "Lamina_Final_Laminada": [(LX, 1.28), (LX - 0.10, 0.98), (LX - 0.20, 1.95), (SR, 1.96), (SR, 1.40),
                               (SR, 1.05), (AX1 - 0.08, 0.99), (AX1 - 0.38, 0.80)],
 }
 for nm, pth in paths.items():
