@@ -271,3 +271,267 @@ def finalizar(nombre_archivo, aqui):
     bpy.ops.wm.save_as_mainfile(filepath=out)
     print("Guardado", out, "-", len([o for o in bpy.data.objects if o.type != "ARMATURE"]), "piezas,",
           len(bpy.data.collections) - 1, "grupos", flush=True)
+
+
+# ---------------------------------------------------------------------------
+# Ayudas para superficies suaves (usadas por autos_modelo.py)
+# ---------------------------------------------------------------------------
+def curva(pts):
+    """Interpolacion cubica monotona (PCHIP) por una tabla [(x, y), ...]; devuelve f(x)."""
+    pts = sorted(pts)
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    n = len(xs)
+    if n == 1:
+        return lambda x: ys[0]
+    h = [xs[i + 1] - xs[i] for i in range(n - 1)]
+    d = [(ys[i + 1] - ys[i]) / h[i] for i in range(n - 1)]
+    m = [0.0] * n
+    m[0], m[-1] = d[0], d[-1]
+    for i in range(1, n - 1):
+        if d[i - 1] * d[i] <= 0:
+            m[i] = 0.0
+        else:
+            w1, w2 = 2 * h[i] + h[i - 1], h[i] + 2 * h[i - 1]
+            m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i])
+
+    def f(x):
+        if x <= xs[0]:
+            return ys[0]
+        if x >= xs[-1]:
+            return ys[-1]
+        lo, hi = 0, n - 1
+        while hi - lo > 1:
+            mid = (lo + hi) // 2
+            if xs[mid] <= x:
+                lo = mid
+            else:
+                hi = mid
+        t = (x - xs[lo]) / h[lo]
+        t2, t3 = t * t, t * t * t
+        return ((2 * t3 - 3 * t2 + 1) * ys[lo] + (t3 - 2 * t2 + t) * h[lo] * m[lo]
+                + (-2 * t3 + 3 * t2) * ys[hi] + (t3 - t2) * h[lo] * m[hi])
+    return f
+
+
+def remuestrear(pts, n, peso_giro=0.0):
+    """Reparte n puntos a lo largo de una polilinea 2D (por longitud, opcionalmente mas densos en curvas)."""
+    acc = [0.0]
+    for i in range(1, len(pts)):
+        dx, dy = pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]
+        L = math.hypot(dx, dy)
+        g = 0.0
+        if peso_giro and 0 < i < len(pts) - 1:
+            ex, ey = pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]
+            a1, a2 = math.atan2(dy, dx), math.atan2(ey, ex)
+            g = abs((a2 - a1 + math.pi) % math.tau - math.pi) * peso_giro
+        acc.append(acc[-1] + L + g)
+    tot = acc[-1]
+    out, j = [], 0
+    for k in range(n):
+        s = tot * k / (n - 1)
+        while j < len(acc) - 2 and acc[j + 1] < s:
+            j += 1
+        seg = acc[j + 1] - acc[j]
+        t = 0.0 if seg <= 1e-12 else (s - acc[j]) / seg
+        a, b = pts[j], pts[j + 1]
+        out.append((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t))
+    return out
+
+
+def aplicar_mods(ob):
+    """Aplica los modificadores de un objeto malla (queda sin modificadores)."""
+    dg = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
+    old = ob.data
+    ob.modifiers.clear()
+    ob.data = me
+    bpy.data.meshes.remove(old)
+    return ob
+
+
+def aristas_vivas(ob, ang=40.0):
+    """Marca como aristas vivas (sharp) las que superan el angulo dado; el resto queda suave."""
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    lim = math.radians(ang)
+    for e in bm.edges:
+        if len(e.link_faces) == 2:
+            e.smooth = e.calc_face_angle(0.0) < lim
+        else:
+            e.smooth = True
+    for f in bm.faces:
+        f.smooth = True
+    bm.to_mesh(ob.data)
+    bm.free()
+    return ob
+
+
+def recortar(ob, cortador, operacion="DIFFERENCE"):
+    """Booleana exacta aplicada al momento; el cortador auxiliar se elimina."""
+    md = ob.modifiers.new("Corte", "BOOLEAN")
+    md.object = cortador
+    md.operation = operacion
+    md.solver = "EXACT"
+    aplicar_mods(ob)
+    bpy.data.objects.remove(cortador, do_unlink=True)
+    return ob
+
+
+def prisma_y(name, contorno_xz, y0, y1):
+    """Extruye un contorno cerrado (x, z) a lo largo de Y entre y0 e y1 (sirve de cortador)."""
+    n = len(contorno_xz)
+    vs = [(x, y0, z) for x, z in contorno_xz] + [(x, y1, z) for x, z in contorno_xz]
+    fs = [tuple(range(n))[::-1], tuple(range(n, 2 * n))]
+    fs += [(i, (i + 1) % n, n + (i + 1) % n, n + i) for i in range(n)]
+    ob = from_pydata(name, vs, fs, smooth=False)
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(ob.data)
+    bm.free()
+    return ob
+
+
+def bvh_de(obs):
+    """Arbol BVH (en coordenadas de mundo) de uno o varios objetos malla, para proyectar piezas."""
+    from mathutils.bvhtree import BVHTree
+    dg = bpy.context.evaluated_depsgraph_get()
+    vs, fs = [], []
+    for ob in obs:
+        ev = ob.evaluated_get(dg)
+        me = ev.to_mesh()
+        M = ob.matrix_world
+        base = len(vs)
+        vs += [M @ v.co for v in me.vertices]
+        fs += [[base + i for i in p.vertices] for p in me.polygons]
+        ev.to_mesh_clear()
+    return BVHTree.FromPolygons(vs, fs)
+
+
+def proyectar(bvh, origen, d, desp=0.0):
+    """Lanza un rayo desde origen en direccion d; devuelve el punto de impacto desplazado por la normal."""
+    d = Vector(d).normalized()
+    hit = bvh.ray_cast(Vector(origen), d)
+    if hit[0] is None:
+        return None, None
+    n = hit[1]
+    if n.dot(d) > 0:
+        n = -n
+    return hit[0] + n * desp, n
+
+
+def malla_rejilla(name, filas, cerrada_u=False, smooth=True, espesor=0.0):
+    """Malla a partir de una rejilla de puntos filas[i][j] (todas las filas del mismo largo)."""
+    nf, nc = len(filas), len(filas[0])
+    vs = [tuple(p) for f in filas for p in f]
+    fs = []
+    for i in range(nf - 1):
+        for j in range(nc if cerrada_u else nc - 1):
+            j2 = (j + 1) % nc
+            fs.append((i * nc + j, i * nc + j2, (i + 1) * nc + j2, (i + 1) * nc + j))
+    ob = from_pydata(name, vs, fs, smooth=smooth)
+    bm = bmesh.new()
+    bm.from_mesh(ob.data)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    bmesh.ops.dissolve_degenerate(bm, edges=bm.edges, dist=1e-5)
+    bm.to_mesh(ob.data)
+    bm.free()
+    if espesor:
+        md = ob.modifiers.new("Espesor", "SOLIDIFY")
+        md.thickness = espesor
+        md.offset = 0.0
+    return ob
+
+
+def calco(name, bvh, contorno, d, desp=0.006, espesor=0.006, anillos=5, abombado=0.0):
+    """Pieza delgada que copia la superficie de la carroceria dentro de un contorno.
+    contorno: puntos 3D de origen de rayo (fuera del auto); d: direccion de proyeccion."""
+    d = Vector(d).normalized()
+    cont = [Vector(p) for p in contorno]
+    c = sum(cont, Vector()) / len(cont)
+    filas = []
+    for k in range(anillos + 1):
+        f = 1.0 - k / anillos
+        fila = []
+        for p in cont:
+            o = c + (p - c) * f
+            pt, n = proyectar(bvh, o, d, desp + abombado * (1 - f * f))
+            if pt is None:
+                # el rayo no toca: punto mas cercano de la carroceria a la altura del contorno
+                hc = bvh.ray_cast(c, d)
+                dist = hc[3] if hc[0] is not None else 1.0
+                q = bvh.find_nearest(o + d * dist)
+                pt = q[0] + q[1] * desp if q[0] is not None else o + d * dist
+            fila.append(pt)
+        filas.append(fila)
+    return malla_rejilla(name, filas, cerrada_u=True, smooth=True, espesor=espesor)
+
+
+def linea_sobre(name, bvh, puntos, d, r=0.004, desp=0.0, paso=0.03, cerrada=False):
+    """Tubo fino que sigue la superficie (juntas de puertas, molduras); puntos = origenes de rayo."""
+    P = [Vector(p) for p in puntos]
+    if cerrada:
+        P.append(P[0])
+    dens = []
+    for a, b in zip(P, P[1:]):
+        k = max(1, int((b - a).length / paso))
+        dens += [a + (b - a) * (i / k) for i in range(k)]
+    dens.append(P[-1])
+    hits = []
+    for o in dens:
+        pt, _ = proyectar(bvh, o, d, desp)
+        if pt is not None:
+            hits.append(pt)
+    if len(hits) < 2:
+        return None
+    return curve_tube(name, hits, r, res=2)
+
+
+class Acum:
+    """Acumula vertices y caras en coordenadas locales para crear una sola malla."""
+
+    def __init__(self):
+        self.v, self.f = [], []
+
+    def add(self, vs, fs):
+        b = len(self.v)
+        self.v += [tuple(p) for p in vs]
+        self.f += [tuple(b + i for i in f) for f in fs]
+
+    def revolver(self, prof, seg=48, cerrado=True):
+        """Gira un perfil [(radio, axial)] alrededor del eje Y local."""
+        n = len(prof)
+        vs = []
+        for k in range(seg):
+            a = math.tau * k / seg
+            ca, sa = math.cos(a), math.sin(a)
+            vs += [(r * ca, y, r * sa) for r, y in prof]
+        fs = []
+        for k in range(seg):
+            k2 = (k + 1) % seg
+            for j in range(n if cerrado else n - 1):
+                j2 = (j + 1) % n
+                fs.append((k * n + j, k * n + j2, k2 * n + j2, k2 * n + j))
+        self.add(vs, fs)
+
+    def prisma(self, base, alto_dir, alto):
+        """Prisma desde un poligono convexo 3D (lista) extruido alto*alto_dir."""
+        n = len(base)
+        top = [tuple(Vector(p) + Vector(alto_dir) * alto) for p in base]
+        fs = [tuple(range(n))[::-1], tuple(range(n, 2 * n))]
+        fs += [(i, (i + 1) % n, n + (i + 1) % n, n + i) for i in range(n)]
+        self.add(list(base) + top, fs)
+
+    def objeto(self, name, transf=None, espejo=False, smooth=True, angulo=35.0):
+        vs = [transf(p) for p in self.v] if transf else self.v
+        ob = from_pydata(name, vs, self.f, smooth=smooth)
+        bm = bmesh.new()
+        bm.from_mesh(ob.data)
+        bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-6)
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+        bm.to_mesh(ob.data)
+        bm.free()
+        if smooth:
+            aristas_vivas(ob, angulo)
+        return ob
