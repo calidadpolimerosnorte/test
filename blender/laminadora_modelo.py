@@ -3,8 +3,10 @@ Modelo Blender limpio de la Laminadora (laminado sin solvente).
 
 Solo la maquina: sin materiales, sin animacion, sin piso, luces ni camaras.
 Cada pieza tiene nombre descriptivo y esta agrupada por sistema.
-Medidas aproximadas (m): ~6.3 de largo x 2.3 de ancho x ~2.75 de alto. Eje largo en X, frente hacia -Y:
-pilar izquierdo, bahia de laminado, pilar de mando central, bahia de rebobinado y unidad de recubrimiento (+X).
+Medidas aproximadas (m): ~6.3 de largo x 2.3 de ancho x ~2.75 de alto. Eje largo en X, frente hacia -Y.
+Une dos laminas: la 1 sale de la bobina del pasillo central, pasa por los rodillos y el recubrimiento del
+extremo izquierdo (exterior), cruza por arriba y se junta en el laminado del extremo derecho con la lamina 2
+(bobina exterior derecha); la lamina final vuelve y se rebobina en el pasillo.
 El piso en z=0.
 
 Uso:
@@ -240,10 +242,10 @@ grupo("02_Cubierta_Superior")
 L = 2.35 - XL
 box("Cubierta_Superior_Blanca", (L, BY1 - FY0 + 0.10, CZ1 - CZ0), ((XL + 2.35) / 2, (FY0 + BY1) / 2, (CZ0 + CZ1) / 2),
     bevel=0.08)
-box("Display_LED_Caja", (0.75, 0.04, 0.24), (0.10, FY0 - 0.065, (CZ0 + CZ1) / 2), bevel=0.03)
+box("Display_LED_Caja", (0.75, 0.04, 0.24), (-1.45, FY0 - 0.065, (CZ0 + CZ1) / 2), bevel=0.03)
 for k in range(2):
-    box("Display_LED_Digitos", (0.25, 0.01, 0.12), (-0.07 + k * 0.34, FY0 - 0.088, (CZ0 + CZ1) / 2 - 0.01))
-box("Franja_Azul_Display", (0.70, 0.01, 0.015), (0.10, FY0 - 0.088, CZ1 - 0.06))
+    box("Display_LED_Digitos", (0.25, 0.01, 0.12), (-1.62 + k * 0.34, FY0 - 0.088, (CZ0 + CZ1) / 2 - 0.01))
+box("Franja_Azul_Display", (0.70, 0.01, 0.015), (-1.45, FY0 - 0.088, CZ1 - 0.06))
 cyl("Soplador_Superior", 0.22, 0.22, (1.20, 0.30, CZ1 + 0.24), axis="X", verts=32)
 cyl("Motor_Soplador", 0.10, 0.28, (1.45, 0.30, CZ1 + 0.24), axis="X", verts=24)
 box("Base_Soplador", (0.60, 0.45, 0.04), (1.30, 0.30, CZ1 + 0.02))
@@ -261,73 +263,85 @@ for z in (CZ1 + 0.30, CZ1 + 0.12):
     cyl("Rodillo_Entrada_Superior", 0.045, 1.60, (XL + 0.42, 0, z), axis="Y")
 
 # ===========================================================================
-# 03 Bahia de laminado (izquierda): rodillos y desbobinador
+# 03 Pasillo central: bobina 1 (desbobinado) y bobina final (rebobinado)
 # ===========================================================================
-grupo("03_Bahia_Laminado")
-roller_stack("Laminado", -1.45, [(1.88, 0.06, "Rodillo_Negro"), (1.72, 0.06, "Rodillo_Negro"),
-                                 (1.56, 0.07, "Rodillo_Goma_Laminado"), (1.40, 0.06, "Rodillo_Cubierta_Amarilla"),
-                                 (1.24, 0.065, "Rodillo_Negro"), (1.08, 0.08, "Rodillo_Cromado_Calefactado")])
-for k, z in enumerate((1.88, 1.72, 1.56, 1.24)):
+grupo("03_Pasillo_Central")
+AX0, AX1 = -2.35, -0.55      # pasillo entre el pilar izquierdo y el pilar de mando
+# rodillos del lado izquierdo del pasillo (salida de la lamina 1 hacia el exterior)
+roller_stack("Pasillo_Izq", AX0 + 0.22, [(1.88, 0.055, "Rodillo_Negro"), (1.70, 0.055, "Rodillo_Negro"),
+                                          (1.50, 0.065, "Rodillo_Cubierta_Amarilla"), (1.30, 0.06, "Rodillo_Negro"),
+                                          (1.10, 0.06, "Rodillo_Guia")])
+box("Pasillo_Izq_Guarda_Amarilla", (0.18, RL - 0.10, 0.04), (AX0 + 0.22, (FY1 + BY0) / 2, 1.58))
+for k, z in enumerate((1.88, 1.70, 1.30)):
     for sy in (-1, 1):
-        cyl("Laminado_Punta_Dorada", 0.025, 0.06, (-1.45, sy * (RL / 2 + 0.06), z), axis="Y", verts=12)
-box("Laminado_Cubierta_Amarilla_Guarda", (0.25, RL - 0.10, 0.04), (-1.45, (FY1 + BY0) / 2, 1.46))
-box("Laminado_Placa_Soporte_Trasera", (1.70, 0.04, 1.20), (-1.45, 0.83, 1.40))
-arm_roll("Desbobinador_1", -1.55, 0.55, 0.22)
-cyl("Rodillo_Guia_Inferior_Laminado", 0.04, RL, (-0.90, (FY1 + BY0) / 2, 0.30), axis="Y")
-
-# ===========================================================================
-# 04 Bahia de rebobinado (derecha): rodillos con soportes naranjas y rebobinador
-# ===========================================================================
-grupo("04_Bahia_Rebobinado")
-roller_stack("Rebobinado", 1.32, [(1.90, 0.055, "Rodillo_Negro"), (1.74, 0.055, "Rodillo_Negro"),
-                                  (1.55, 0.065, "Rodillo_Negro"), (1.38, 0.06, "Rodillo_Tension"),
-                                  (1.18, 0.075, "Rodillo_Cromado"), (0.98, 0.06, "Rodillo_Negro")])
+        cyl("Pasillo_Izq_Punta_Dorada", 0.022, 0.06, (AX0 + 0.22, sy * (RL / 2 + 0.06), z), axis="Y", verts=12)
+arm_roll("Bobina_1_Desbobinado", AX0 + 0.40, 0.55, 0.22)
+# rodillos del lado derecho del pasillo (regreso de la lamina laminada, soportes naranjas)
+roller_stack("Pasillo_Der", AX1 - 0.22, [(1.90, 0.055, "Rodillo_Negro"), (1.72, 0.055, "Rodillo_Negro"),
+                                          (1.52, 0.065, "Rodillo_Negro"), (1.32, 0.06, "Rodillo_Tension"),
+                                          (1.12, 0.07, "Rodillo_Cromado")])
 for sy in (-1, 1):
-    beam("Rebobinado_Brazo_Naranja", (1.05, sy * 0.80, 1.70), (1.60, sy * 0.80, 1.45), 0.06, t2=0.10)
-box("Rebobinado_Placa_Soporte_Trasera", (1.70, 0.04, 1.20), (1.32, 0.83, 1.40))
-arm_roll("Rebobinador", 1.30, 0.55, 0.18)
-box("Rebobinado_Fotocelda", (0.08, 0.06, 0.06), (1.00, -0.60, 1.30))
+    beam("Pasillo_Der_Brazo_Naranja", (AX1 - 0.05, sy * 0.80, 1.70), (AX1 - 0.40, sy * 0.80, 1.45), 0.06, t2=0.10)
+arm_roll("Bobina_Final_Rebobinado", AX1 - 0.42, 0.55, 0.18)
+box("Pasillo_Fotocelda", (0.08, 0.06, 0.06), (AX1 - 0.30, -0.60, 1.25))
 
 # ===========================================================================
-# 05 Unidad de recubrimiento (extremo derecho, carcasa gris con ventana)
+# 04 Bahia exterior derecha: laminado (union de las dos laminas) y bobina 2
+# ===========================================================================
+grupo("04_Laminado_y_Bobina_2")
+LX = 1.10
+roller_stack("Laminado", LX, [(1.90, 0.055, "Rodillo_Negro"), (1.72, 0.055, "Rodillo_Negro"),
+                              (1.52, 0.075, "Rodillo_Goma_Presion"), (1.36, 0.085, "Rodillo_Cromado_Calefactado"),
+                              (1.16, 0.06, "Rodillo_Enfriador"), (0.98, 0.055, "Rodillo_Guia")])
+for sy in (-1, 1):
+    box("Laminado_Cilindro_Presion", (0.10, 0.10, 0.22), (LX - 0.15, sy * (RL / 2 - 0.02), 1.70), bevel=0.01)
+    box("Laminado_Soporte_Naranja", (0.30, 0.06, 0.12), (LX + 0.10, sy * 0.80, 1.52), bevel=0.01)
+arm_roll("Bobina_2_Exterior", 1.75, 0.55, 0.22)
+cyl("Rodillo_Guia_Bobina_2", 0.045, RL, (1.55, (FY1 + BY0) / 2, 1.05), axis="Y")
+
+# ===========================================================================
+# 05 Unidad de recubrimiento (extremo izquierdo, exterior, por donde pasa la lamina 1)
 # ===========================================================================
 grupo("05_Unidad_Recubrimiento")
-UX0, UX1 = 2.35, 3.30
+UX1, UX0 = XL, XL - 0.95
 box("Carcasa_Recubrimiento_Gris", (UX1 - UX0, BY1 - FY0, 2.20), ((UX0 + UX1) / 2, (FY0 + BY1) / 2, 1.10), bevel=0.02)
-box("Capota_Redondeada_Blanca", (UX1 - UX0 + 0.12, BY1 - FY0 + 0.12, 0.40), ((UX0 + UX1) / 2 + 0.04, (FY0 + BY1) / 2, 2.35),
+box("Capota_Redondeada_Blanca", (UX1 - UX0 + 0.12, BY1 - FY0 + 0.12, 0.40), ((UX0 + UX1) / 2 - 0.04, (FY0 + BY1) / 2, 2.35),
     bevel=0.12)
-box("Ranura_Luz_Capota", (0.012, 1.60, 0.03), (UX1 + 0.10, (FY0 + BY1) / 2, 2.22))
-box("Ventana_Vidrio_Recubrimiento", (0.012, 1.40, 0.55), (UX1 + 0.006, (FY0 + BY1) / 2, 1.55))
-box("Marco_Ventana", (0.016, 1.50, 0.65), (UX1 + 0.004, (FY0 + BY1) / 2, 1.55))
-c = box("Corte_Abertura_Rodillos", (0.40, 1.50, 0.75), (UX1, (FY0 + BY1) / 2, 0.80))
+box("Ranura_Luz_Capota", (0.012, 1.60, 0.03), (UX0 - 0.10, (FY0 + BY1) / 2, 2.22))
+box("Ventana_Vidrio_Recubrimiento", (0.012, 1.40, 0.55), (UX0 - 0.006, (FY0 + BY1) / 2, 1.55))
+box("Marco_Ventana", (0.016, 1.50, 0.65), (UX0 - 0.004, (FY0 + BY1) / 2, 1.55))
+c = box("Corte_Abertura_Rodillos", (0.40, 1.50, 0.75), (UX0, (FY0 + BY1) / 2, 0.80))
 c.hide_render = c.hide_viewport = True
 md = bpy.data.objects["Carcasa_Recubrimiento_Gris"].modifiers.new("Abertura", "BOOLEAN")
 md.object = c
 md.operation = "DIFFERENCE"
-for z, r, nm in ((1.08, 0.08, "Rodillo_Recubrimiento_Cromado"), (1.08, 0.05, "Rodillo_Dosificador_Verde"),
-                 (0.88, 0.07, "Rodillo_Aplicador_Cromado"), (0.70, 0.04, "Rodillo_Guia_Inferior"),
-                 (0.35, 0.05, "Rodillo_Blanco_Base")):
-    cyl(nm, r, 1.45, (UX1 - 0.08 + (0.10 if "Verde" in nm else 0), (FY0 + BY1) / 2, z), axis="Y", verts=32)
-box("Barra_Perforada_Racla", (0.05, 1.40, 0.06), (UX1 - 0.02, (FY0 + BY1) / 2, 0.98))
-box("Panel_Pulsadores_Inoxidable", (0.012, 0.18, 0.30), (UX1 + 0.006, FY0 + 0.35, 1.60))
+for z, r, nm, dx in ((1.08, 0.08, "Rodillo_Recubrimiento_Cromado", 0.08), (1.08, 0.05, "Rodillo_Dosificador_Verde", -0.02),
+                     (0.88, 0.07, "Rodillo_Aplicador_Cromado", 0.08), (0.70, 0.04, "Rodillo_Guia_Inferior", 0.08),
+                     (0.35, 0.05, "Rodillo_Blanco_Base", 0.08)):
+    cyl(nm, r, 1.45, (UX0 + dx, (FY0 + BY1) / 2, z), axis="Y", verts=32)
+box("Barra_Perforada_Racla", (0.05, 1.40, 0.06), (UX0 + 0.02, (FY0 + BY1) / 2, 0.98))
+box("Panel_Pulsadores_Inoxidable", (0.012, 0.18, 0.30), (UX0 - 0.006, FY0 + 0.35, 1.60))
 for k in range(4):
-    cyl("Pulsador_Recubrimiento", 0.016, 0.02, (UX1 + 0.012, FY0 + 0.35, 1.70 - k * 0.07), axis="X", verts=12)
-cyl("Paro_Emergencia_Recubrimiento", 0.03, 0.03, (UX1 + 0.015, FY0 + 0.35, 1.42), axis="X", verts=24)
+    cyl("Pulsador_Recubrimiento", 0.016, 0.02, (UX0 - 0.012, FY0 + 0.35, 1.70 - k * 0.07), axis="X", verts=12)
+cyl("Paro_Emergencia_Recubrimiento", 0.03, 0.03, (UX0 - 0.015, FY0 + 0.35, 1.42), axis="X", verts=24)
 for sy in (-1, 1):
-    box("Pata_Carcasa", (0.12, 0.12, 0.05), (UX1 - 0.15, sy * 0.85, 0.025))
-curve_tube("Ducto_Flexible_Recubrimiento", [Vector((UX0 + 0.30, -0.30, 2.40)), Vector((UX0 + 0.50, 0.20, 2.10)),
-                                            Vector((UX0 + 0.70, 0.30, 1.85))], 0.07)
+    box("Pata_Carcasa", (0.12, 0.12, 0.05), (UX0 + 0.15, sy * 0.85, 0.025))
+curve_tube("Ducto_Flexible_Recubrimiento", [Vector((UX1 - 0.30, -0.30, 2.40)), Vector((UX1 - 0.50, 0.20, 2.10)),
+                                            Vector((UX1 - 0.70, 0.30, 1.85))], 0.07)
 
 # ===========================================================================
-# 06 Film: dos laminas que se unen en el rodillo de laminado
+# 06 Film: lamina 1 (pasillo -> exterior izq -> arriba -> laminado), lamina 2 y lamina final
 # ===========================================================================
 grupo("06_Film")
 yc = (FY1 + BY0) / 2
 w = 0.55
 paths = {
-    "Lamina_Base_Desbobinador_1": [(-1.55, 0.77), (-0.90, 0.34), (-1.20, 1.08), (-1.40, 1.56), (-1.20, 1.88), (0.0, 1.95),
-                                    (1.10, 1.95), (1.32, 1.18), (1.30, 0.73)],
-    "Lamina_Recubierta": [(UX1 - 0.08, 1.16), (2.60, 1.70), (2.30, 1.98), (0.0, 1.98)],
+    "Lamina_1_Desde_Pasillo": [(AX0 + 0.40, 0.77), (AX0 + 0.22, 1.16), (AX0 + 0.22, 1.36), (AX0 + 0.22, 1.76),
+                               (XL - 0.10, 1.85), (UX0 + 0.16, 1.16), (UX0 + 0.08, 0.81), (UX0 + 0.08, 0.66),
+                               (XL - 0.40, 0.60), (XL + 0.42, CZ1 + 0.30), (LX - 0.30, CZ1 + 0.30), (LX, 1.61)],
+    "Lamina_2_Bobina_Exterior": [(1.75, 0.77), (1.55, 1.10), (LX + 0.08, 1.45)],
+    "Lamina_Final_Laminada": [(LX, 1.28), (LX - 0.10, 0.98), (0.30, 1.95), (AX1 - 0.22, 1.96), (AX1 - 0.22, 1.40),
+                              (AX1 - 0.22, 1.05), (AX1 - 0.42, 0.73)],
 }
 for nm, pth in paths.items():
     verts, faces = [], []
