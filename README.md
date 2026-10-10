@@ -5,6 +5,7 @@ Modelo procedural en Blender de la línea de extrusión de película soplada (bl
 
 ## Contenido
 
+- `blender/laminadora_modelo.blend` – **Laminadora**: cubierta superior, pilares, bahía de laminado, bahía de rebobinado y unidad de recubrimiento. Se genera con `python3 blender/laminadora_modelo.py`.
 - `blender/impresora_ci6_modelo.blend` – **Impresora flexográfica de tambor central CHCI6-800J** (6 colores) con plataforma, escalera, desbobinador/rebobinador, columna de mando y gabinetes. Se genera con `python3 blender/impresora_ci6_modelo.py`.
 - `blender/selladora_p1_modelo.blend` – **Selladora P1** (línea larga de ~22 m): entrada negra con desbobinador, torre de acumulación y corte/plegado; tramo inoxidable con vigas de sellado, aplicador de cierre, 8 estaciones transversales y troquel; salida con apilador y tablero. Se genera con `python3 blender/selladora_p1_modelo.py`.
 - `blender/cortadora_1_modelo.blend` – **Cortadora Nº 1**: mismo formato, piezas nombradas por grupos, sin materiales. Se genera con `python3 blender/cortadora_1_modelo.py`.
