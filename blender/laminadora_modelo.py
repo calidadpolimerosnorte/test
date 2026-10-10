@@ -195,16 +195,34 @@ def roller_stack(prefix, xc, zs):
                 verts=16)
 
 
-def arm_roll(prefix, xc, z, rr):
-    """Bobina sobre eje con carcasas blancas en voladizo (desbobinador/rebobinador)."""
-    yc = (FY1 + BY0) / 2
-    cyl(f"{prefix}_Bobina", rr, 1.10, (xc, yc - 0.10, z), axis="Y", verts=64)
-    cyl(f"{prefix}_Nucleo", 0.045, 1.16, (xc, yc - 0.10, z), axis="Y", verts=24)
-    cyl(f"{prefix}_Eje_Neumatico", 0.035, RL + 0.20, (xc, yc, z), axis="Y", verts=16)
-    for sy, sn in ((-1, "Frontal"), (1, "Trasero")):
-        box(f"{prefix}_Carcasa_Brazo_{sn}", (0.30, 0.22, 0.32), (xc + 0.05, yc + sy * (RL / 2 - 0.05), z), bevel=0.04)
-        box(f"{prefix}_Brazo_{sn}", (0.12, 0.10, 0.40), (xc + 0.20, yc + sy * (RL / 2 - 0.05), z - 0.25))
-    spiral_hose(f"{prefix}_Cable_Espiral", (xc - 0.10, FY1 - 0.05, z - 0.15), turns=12, drop=0.35)
+def coiled_hose(name, p0, p1, turns=18, r=0.035):
+    """Manguera de aire en espiral entre dos puntos."""
+    p0, p1 = Vector(p0), Vector(p1)
+    d = (p1 - p0)
+    ax = d.normalized()
+    u = ax.orthogonal().normalized()
+    v = ax.cross(u)
+    n = turns * 10
+    pts = [p0 + d * (i / n) + (u * math.cos(i * math.tau / 10) + v * math.sin(i * math.tau / 10)) * r for i in range(n + 1)]
+    return curve_tube(name, pts, 0.005)
+
+
+def arm_roll(prefix, xc, z, rr, wall_x):
+    """Bobina en voladizo: eje a lo largo de Y sujeto por una carcasa blanca adelante,
+    que se fija con una mensula a la pared del pasillo (sin apoyo en el piso)."""
+    y_h = FY1 + 0.18                      # carcasa del eje (adelante)
+    cyl(f"{prefix}_Bobina", rr, 1.05, (xc, y_h + 0.70, z), axis="Y", verts=64)
+    cyl(f"{prefix}_Nucleo", 0.045, 1.10, (xc, y_h + 0.70, z), axis="Y", verts=24)
+    cyl(f"{prefix}_Eje_Neumatico_Voladizo", 0.035, 1.35, (xc, y_h + 0.70, z), axis="Y", verts=16)
+    box(f"{prefix}_Carcasa_Blanca_Eje", (0.32, 0.26, 0.42), (xc, y_h, z + 0.02), bevel=0.05)
+    sgn = 1 if wall_x > xc else -1
+    box(f"{prefix}_Mensula_Pared", (abs(wall_x - xc), 0.16, 0.20), ((xc + wall_x) / 2, y_h, z + 0.10), bevel=0.01)
+    box(f"{prefix}_Placa_Fijacion_Pared", (0.03, 0.30, 0.40), (wall_x - sgn * 0.015, y_h, z + 0.10))
+    cyl(f"{prefix}_Tapa_Eje_Amarilla", 0.04, 0.03, (xc, y_h - 0.145, z), axis="Y", verts=16)
+    # manguera de aire en espiral: de la carcasa al piso y hasta la pared
+    coiled_hose(f"{prefix}_Manguera_Aire_Espiral", (xc, y_h - 0.10, z - 0.18), (xc + sgn * 0.05, y_h - 0.25, 0.06))
+    coiled_hose(f"{prefix}_Manguera_Aire_Espiral_Piso", (xc + sgn * 0.05, y_h - 0.25, 0.06),
+                (wall_x - sgn * 0.05, y_h - 0.30, 0.06), turns=14)
 
 
 # ===========================================================================
@@ -263,27 +281,33 @@ for z in (CZ1 + 0.30, CZ1 + 0.12):
     cyl("Rodillo_Entrada_Superior", 0.045, 1.60, (XL + 0.42, 0, z), axis="Y")
 
 # ===========================================================================
-# 03 Pasillo central: bobina 1 (desbobinado) y bobina final (rebobinado)
+# 03 Pasillo central: paredes con aberturas, rodillos por dentro, bobinas en voladizo
 # ===========================================================================
 grupo("03_Pasillo_Central")
-AX0, AX1 = -2.35, -0.55      # pasillo entre el pilar izquierdo y el pilar de mando
-# rodillos del lado izquierdo del pasillo (salida de la lamina 1 hacia el exterior)
-roller_stack("Pasillo_Izq", AX0 + 0.22, [(1.88, 0.055, "Rodillo_Negro"), (1.70, 0.055, "Rodillo_Negro"),
+AX0, AX1 = -2.35, -0.55      # pasillo entre el bloque izquierdo y el bloque de mando
+SL, SR = -2.65, -0.25        # torres de rodillos (dentro de los bloques, detras de las paredes)
+for x, nm, sg in ((AX0, "Izquierda", -1), (AX1, "Derecha", 1)):
+    plate_x = x + sg * 0.02
+    verts_y = [(FY1, 0.08), (BY0, 0.08), (BY0, CZ0), (FY1, CZ0)]
+    w = plate(f"Pared_Pasillo_{nm}", verts_y, plate_x, t=0.04,
+              holes=[((FY1 + BY0) / 2, 1.45, RL - 0.30, 1.05)])
+roller_stack("Rodillos_Bloque_Izq", SL, [(1.88, 0.055, "Rodillo_Negro"), (1.70, 0.055, "Rodillo_Negro"),
                                           (1.50, 0.065, "Rodillo_Cubierta_Amarilla"), (1.30, 0.06, "Rodillo_Negro"),
                                           (1.10, 0.06, "Rodillo_Guia")])
-box("Pasillo_Izq_Guarda_Amarilla", (0.18, RL - 0.10, 0.04), (AX0 + 0.22, (FY1 + BY0) / 2, 1.58))
+box("Rodillos_Bloque_Izq_Guarda_Amarilla", (0.18, RL - 0.10, 0.04), (SL + 0.06, (FY1 + BY0) / 2, 1.58))
 for k, z in enumerate((1.88, 1.70, 1.30)):
     for sy in (-1, 1):
-        cyl("Pasillo_Izq_Punta_Dorada", 0.022, 0.06, (AX0 + 0.22, sy * (RL / 2 + 0.06), z), axis="Y", verts=12)
-arm_roll("Bobina_1_Desbobinado", AX0 + 0.40, 0.55, 0.22)
-# rodillos del lado derecho del pasillo (regreso de la lamina laminada, soportes naranjas)
-roller_stack("Pasillo_Der", AX1 - 0.22, [(1.90, 0.055, "Rodillo_Negro"), (1.72, 0.055, "Rodillo_Negro"),
+        cyl("Rodillos_Bloque_Izq_Punta_Dorada", 0.022, 0.06, (SL, sy * (RL / 2 + 0.06), z), axis="Y", verts=12)
+roller_stack("Rodillos_Bloque_Der", SR, [(1.90, 0.055, "Rodillo_Negro"), (1.72, 0.055, "Rodillo_Negro"),
                                           (1.52, 0.065, "Rodillo_Negro"), (1.32, 0.06, "Rodillo_Tension"),
                                           (1.12, 0.07, "Rodillo_Cromado")])
 for sy in (-1, 1):
-    beam("Pasillo_Der_Brazo_Naranja", (AX1 - 0.05, sy * 0.80, 1.70), (AX1 - 0.40, sy * 0.80, 1.45), 0.06, t2=0.10)
-arm_roll("Bobina_Final_Rebobinado", AX1 - 0.42, 0.55, 0.18)
-box("Pasillo_Fotocelda", (0.08, 0.06, 0.06), (AX1 - 0.30, -0.60, 1.25))
+    beam("Rodillos_Bloque_Der_Brazo_Naranja", (SR - 0.20, sy * 0.78, 1.72), (SR + 0.15, sy * 0.78, 1.48), 0.06, t2=0.10)
+cyl("Rodillo_Guia_Pasillo_Izq", 0.04, RL, (AX0 + 0.08, (FY1 + BY0) / 2, 0.95), axis="Y")
+cyl("Rodillo_Guia_Pasillo_Der", 0.04, RL, (AX1 - 0.08, (FY1 + BY0) / 2, 0.95), axis="Y")
+arm_roll("Bobina_1_Desbobinado", AX0 + 0.38, 0.62, 0.22, AX0 + 0.02)
+arm_roll("Bobina_Final_Rebobinado", AX1 - 0.38, 0.62, 0.18, AX1 - 0.02)
+box("Pasillo_Fotocelda", (0.08, 0.06, 0.06), (AX1 - 0.10, -0.60, 1.25))
 
 # ===========================================================================
 # 04 Bahia exterior derecha: laminado (union de las dos laminas) y bobina 2
@@ -296,7 +320,7 @@ roller_stack("Laminado", LX, [(1.90, 0.055, "Rodillo_Negro"), (1.72, 0.055, "Rod
 for sy in (-1, 1):
     box("Laminado_Cilindro_Presion", (0.10, 0.10, 0.22), (LX - 0.15, sy * (RL / 2 - 0.02), 1.70), bevel=0.01)
     box("Laminado_Soporte_Naranja", (0.30, 0.06, 0.12), (LX + 0.10, sy * 0.80, 1.52), bevel=0.01)
-arm_roll("Bobina_2_Exterior", 1.75, 0.55, 0.22)
+arm_roll("Bobina_2_Exterior", 1.75, 0.62, 0.22, 2.10)
 cyl("Rodillo_Guia_Bobina_2", 0.045, RL, (1.55, (FY1 + BY0) / 2, 1.05), axis="Y")
 
 # ===========================================================================
@@ -336,12 +360,12 @@ grupo("06_Film")
 yc = (FY1 + BY0) / 2
 w = 0.55
 paths = {
-    "Lamina_1_Desde_Pasillo": [(AX0 + 0.40, 0.77), (AX0 + 0.22, 1.16), (AX0 + 0.22, 1.36), (AX0 + 0.22, 1.76),
+    "Lamina_1_Desde_Pasillo": [(AX0 + 0.38, 0.84), (AX0 + 0.08, 0.99), (SL, 1.16), (SL, 1.36), (SL, 1.76),
                                (XL - 0.10, 1.85), (UX0 + 0.16, 1.16), (UX0 + 0.08, 0.81), (UX0 + 0.08, 0.66),
                                (XL - 0.40, 0.60), (XL + 0.42, CZ1 + 0.30), (LX - 0.30, CZ1 + 0.30), (LX, 1.61)],
-    "Lamina_2_Bobina_Exterior": [(1.75, 0.77), (1.55, 1.10), (LX + 0.08, 1.45)],
-    "Lamina_Final_Laminada": [(LX, 1.28), (LX - 0.10, 0.98), (0.30, 1.95), (AX1 - 0.22, 1.96), (AX1 - 0.22, 1.40),
-                              (AX1 - 0.22, 1.05), (AX1 - 0.42, 0.73)],
+    "Lamina_2_Bobina_Exterior": [(1.75, 0.84), (1.55, 1.10), (LX + 0.08, 1.45)],
+    "Lamina_Final_Laminada": [(LX, 1.28), (LX - 0.10, 0.98), (0.30, 1.95), (SR, 1.96), (SR, 1.40),
+                              (SR, 1.05), (AX1 - 0.08, 0.99), (AX1 - 0.38, 0.80)],
 }
 for nm, pth in paths.items():
     verts, faces = [], []
