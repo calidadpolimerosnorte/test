@@ -5,6 +5,7 @@ Modelo procedural en Blender de la línea de extrusión de película soplada (bl
 
 ## Contenido
 
+- `blender/vehiculo_pickup_modelo.blend` – **Camioneta pickup doble cabina** (tipo JMC Vigus EV): mismo formato, piezas nombradas por grupos, sin materiales. Se genera con `python3 blender/vehiculo_pickup_modelo.py`.
 - `blender/vehiculo_suv_modelo.blend` – **SUV compacto** (tipo Chevrolet Tracker): mismo formato, piezas nombradas por grupos, sin materiales. Se genera con `python3 blender/vehiculo_suv_modelo.py`.
 - `blender/extrusora7_modelo.blend` – **Extrusora Nº 7**: igual que la Nº 6 pero con impresora y troqueladora más grandes. Mismo formato. Se genera con `python3 blender/extrusora7_modelo.py`.
 - `blender/extrusora6_modelo.blend` – **Extrusora Nº 6** (no existe la Nº 5): línea larga con torre, impresora flexográfica, troqueladora con aspiración de recorte, puente aéreo de rodillos y dos embobinadoras en tándem. Mismo formato: solo la máquina, sin materiales ni animación, piezas nombradas por grupos. Se genera con `python3 blender/extrusora6_modelo.py`.
