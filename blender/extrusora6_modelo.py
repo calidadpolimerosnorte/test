@@ -265,12 +265,12 @@ def tower():
     box("Plataforma", (2 * PX, PY - H, t), (0, (PY + H) / 2, zc), M["negro"], 0.006)
     box("Plataforma", (PX - H, 2 * H, t), (-(PX + H) / 2, 0, zc), M["negro"], 0.006)
     box("Plataforma", (PX - H, 2 * H, t), ((PX + H) / 2, 0, zc), M["negro"], 0.006)
-    # descanso de la escalera (lado izquierdo)
-    LX0, LX1, LY0, LY1 = -PX - 0.80, -PX, -0.30, 0.90
+    # descanso de la escalera del primer piso (lado derecho)
+    LX0, LX1, LY0, LY1 = PX, PX + 0.95, -0.30, 0.90
     box("Descanso_Escalera", (LX1 - LX0, LY1 - LY0, t), ((LX0 + LX1) / 2, (LY0 + LY1) / 2, zc), M["negro"], 0.006)
     for y in (LY0 + 0.07, LY1 - 0.07):
-        box("Poste_Descanso", (0.12, 0.12, PZ - 0.10), (LX0 + 0.07, y, (PZ - 0.10) / 2), M["blanco"], 0.004)
-        box("PlacaBase", (0.26, 0.26, 0.02), (LX0 + 0.07, y, 0.01), M["blanco"])
+        box("Poste_Descanso", (0.12, 0.12, PZ - 0.10), (LX1 - 0.07, y, (PZ - 0.10) / 2), M["blanco"], 0.004)
+        box("PlacaBase", (0.26, 0.26, 0.02), (LX1 - 0.07, y, 0.01), M["blanco"])
 
     grupo("03_Barandas")
     rh = 1.05
@@ -288,11 +288,11 @@ def tower():
     ex, ey = PX - 0.02, PY - 0.02
     rail_segment((-ex, -ey, 0), (ex, -ey, 0))
     rail_segment((-ex, ey, 0), (ex, ey, 0))
-    rail_segment((ex, -ey, 0), (ex, ey, 0))
-    rail_segment((-ex, -ey, 0), (-ex, LY0, 0))
-    rail_segment((-ex, LY1, 0), (-ex, ey, 0))
-    rail_segment((LX0 + 0.02, LY0 + 0.02, 0), (LX0 + 0.02, LY1 - 0.02, 0))
-    rail_segment((LX0 + 0.02, LY1 - 0.02, 0), (-ex, LY1 - 0.02, 0))
+    rail_segment((-ex, -ey, 0), (-ex, ey, 0))
+    rail_segment((ex, -ey, 0), (ex, LY0, 0))
+    rail_segment((ex, LY1, 0), (ex, ey, 0))
+    rail_segment((LX1 - 0.02, LY0 + 0.02, 0), (LX1 - 0.02, LY1 - 0.02, 0))
+    rail_segment((ex, LY1 - 0.02, 0), (LX1 - 0.02, LY1 - 0.02, 0))
 
 
 # ---------------------------------------------------------------------------
@@ -630,7 +630,8 @@ def control_panel():
 # ---------------------------------------------------------------------------
 def ladder():
     grupo("19_Escalera")
-    x = -(PX + 0.40)
+    # escalera del primer piso: lado derecho, sube de adelante hacia atras al descanso
+    x = PX + 0.55
     stair((x, -2.55, 0.0), (x, -0.32, PZ), 0.70)
 
 
