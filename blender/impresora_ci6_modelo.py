@@ -393,29 +393,25 @@ for k, nm in enumerate(("Baliza_Gabinete_Verde", "Baliza_Gabinete_Ambar", "Baliz
 # ===========================================================================
 # 08 Polipasto con viga roja (sobre la maquina)
 # ===========================================================================
-grupo("08_Polipasto_Viga_Roja")
-box("Viga_Roja_Polipasto", (6.80, 0.16, 0.22), (-0.40, -CW - 0.25, 3.90), bevel=0.005)
-for x in (-3.60, 2.70):
-    beam("Puntal_Viga_Roja", (x, -CW - 0.25, 3.80), (x, CW + 0.30, 3.30), 0.14, t2=0.18)
-    box("Mensula_Muro", (0.30, 0.10, 0.35), (x, CW + 0.35, 3.30))
-box("Polipasto_Electrico_Naranja", (0.30, 0.22, 0.38), (1.10, -CW - 0.25, 3.55), bevel=0.04)
-box("Carro_Polipasto", (0.30, 0.24, 0.10), (1.10, -CW - 0.25, 3.76))
-curve_tube("Cadena_Polipasto", [Vector((1.10, -CW - 0.25, 3.36)), Vector((1.10, -CW - 0.25, 1.40))], 0.008)
-box("Gancho_Polipasto", (0.06, 0.03, 0.12), (1.10, -CW - 0.25, 1.33))
-box("Botonera_Colgante", (0.08, 0.06, 0.22), (1.25, -CW - 0.25, 1.30), bevel=0.01)
-
-# ===========================================================================
-# 09 Bombas de tinta (6) junto a la torre
-# ===========================================================================
-grupo("09_Bombas_de_Tinta")
-for k in range(6):
-    x = TX0 + 0.10 + k * 0.40
-    y = -(FY + FT + 0.55)
-    cyl("Balde_Tinta", 0.15, 0.30, (x, y, 0.15), verts=24)
-    cyl("Bomba_Diafragma", 0.05, 0.16, (x, y + 0.05, 0.42), axis="Y", verts=16)
-    beam("Soporte_Bomba", (x, y + 0.05, 0.30), (x, y + 0.05, 0.40), 0.02, round_=True)
-    curve_tube("Manguera_Bomba", [Vector((x, y + 0.13, 0.42)), Vector((x + 0.05, y + 0.35, 0.30)),
-                                  Vector((x + 0.05, -(FY + FT), 0.40))], 0.010)
+grupo("08_Vigas_Rojas_y_Tecles")
+# dos vigas rojas paralelas (una a cada lado) unidas por vigas transversales en los extremos;
+# cada viga lleva su tecle electrico con carro
+VZ = 4.05
+VX0, VX1 = -3.70, 2.85
+for sy, sn in ((-1, "Operador"), (1, "Muro")):
+    y = sy * (CW + 0.25)
+    box(f"Viga_Roja_Longitudinal_{sn}", (VX1 - VX0, 0.16, 0.22), ((VX0 + VX1) / 2, y, VZ), bevel=0.005)
+    box(f"Ala_Inferior_Viga_{sn}", (VX1 - VX0, 0.20, 0.02), ((VX0 + VX1) / 2, y, VZ - 0.12))
+    tx_ = 1.10 if sy < 0 else -1.80
+    box(f"Carro_Tecle_{sn}", (0.30, 0.26, 0.10), (tx_, y, VZ - 0.18))
+    box(f"Tecle_Electrico_Naranja_{sn}", (0.30, 0.22, 0.38), (tx_, y, VZ - 0.42), bevel=0.04)
+    curve_tube(f"Cadena_Tecle_{sn}", [Vector((tx_, y, VZ - 0.61)), Vector((tx_, y, 1.40))], 0.008)
+    box(f"Gancho_Tecle_{sn}", (0.06, 0.03, 0.12), (tx_, y, 1.33))
+    box(f"Botonera_Colgante_{sn}", (0.08, 0.06, 0.22), (tx_ + 0.15, y, 1.30), bevel=0.01)
+for x, nm in ((VX0 + 0.08, "Extremo_Torre"), (VX1 - 0.08, "Extremo_Rebobinado")):
+    box(f"Viga_Roja_Transversal_{nm}", (0.16, 2 * (CW + 0.25) + 0.16, 0.22), (x, 0, VZ), bevel=0.005)
+    box(f"Mensula_Muro_{nm}", (0.30, 0.12, 0.40), (x, CW + 0.45, VZ - 0.05))
+    beam(f"Tirante_Diagonal_{nm}", (x, CW + 0.45, VZ - 0.60), (x, CW + 0.10, VZ - 0.10), 0.10)
 
 # ===========================================================================
 # 10 Film impreso: desbobinador -> tambor -> tunel -> rebobinador
