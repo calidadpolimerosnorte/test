@@ -1,12 +1,14 @@
 """
-Placa de escritorio con porta-lapiceros, imprimible en 3D.
+Placa de escritorio delgada en la que las moléculas son el porta-lapiceros.
 
-  - Frente: placa inclinada (como las placas de nombre de aluminio) con panel
-    blanco, rieles azules, logo de Polímeros Norte en azul y
-    "Claudio Alvarez S." / "COORDINADOR DE I+D" en negro.
-  - Atrás: bloque con 4 agujeros para lapiceros (Ø 13 mm, 64 mm de profundidad).
-  - Arriba, al centro: la unidad del polietileno -[CH2-CH2]- (2 carbonos, cada
-    uno con 2 H) sobre un pedestal azul.
+  - Piso fino (3 mm) de esquinas redondeadas.
+  - Al frente, una placa inclinada de 3 mm (como las placas de nombre de aluminio)
+    con rieles azules, logo de Polímeros Norte en azul y "Claudio Alvarez S." /
+    "COORDINADOR DE I+D" en negro.
+  - Atrás, dos unidades del polietileno -[CH2-CH2]- (cada carbono con 2 H y 2
+    enlaces C). Cada carbono es un porta-lapicero: un agujero vertical de Ø 13 mm
+    lo atraviesa y baja hasta un rebaje en el piso donde se apoya la punta.
+    4 lapiceros en total.
 
 Colores (sin rojo): negro, azul (#36427A) y blanco.
 Salida en imprimir_3d/: placa_portalapiceros.3mf (una parte por color), .blend y STL.
@@ -21,48 +23,88 @@ import os
 import sys
 
 import bpy
-import bmesh
-from mathutils import Matrix, Vector
+from mathutils import Vector
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import adorno_polietileno as ap  # noqa: E402
-from adornos_escritorio import AQUI, CARGO, NOMBRE, caja, camara, marco, prisma, texto  # noqa: E402
+from adornos_escritorio import AQUI, CARGO, NOMBRE, caja, camara, cilindro_entre, esfera, marco, material, texto  # noqa: E402
 
 MM = ap.MM
-ANCHO = 200.0
 
-# perfil del cuerpo (y, z) en mm: placa inclinada al frente y bloque porta-lapiceros atrás
-PIE_PLACA = (-58.0, 0.0)
-TOPE_PLACA = (-30.0, 48.0)
-Y_BLOQUE, Y_ATRAS, ALTO_BLOQUE = -20.0, 45.0, 76.0
+# piso
+PISO_A, PISO_B, PISO_Y, PISO_E = 90.0, 46.0, 3.0, 3.0   # semiejes, centro en Y y espesor (mm)
 
-# agujeros para lapiceros
-AGUJEROS_X = (-84.0, -62.0, 62.0, 84.0)
-R_AGUJERO, PROF_AGUJERO = 6.5, 64.0
-Y_CENTRO_BLOQUE = (Y_BLOQUE + Y_ATRAS) / 2
+# placa inclinada
+PLACA_ANCHO, PLACA_ALTO, PLACA_E = 170.0, 30.0, 3.0
+PLACA_ANG = 65.0                    # grados sobre la horizontal
+PLACA_PIE = (-39.0, 1.5)            # (y, z) del borde inferior de la cara frontal, dentro del piso
 
-PEDESTAL = (92.0, 56.0, 1.6)  # mm, rectángulo redondeado azul bajo la molécula
+# moléculas porta-lapiceros
+X_MOLECULAS = 45.0                  # una a cada lado (la derecha en espejo)
+R_AGUJERO = 6.5                     # Ø 13 mm: lapiceros y plumones
+DESCENTRADO = 5.0                   # el agujero se corre hacia el enlace C-C para no chocar con el enlace abierto
+REBAJE = 1.5                        # mm que la punta del lapicero entra en el piso
 
 
-def cuerpo(m):
-    perfil = [PIE_PLACA, (Y_ATRAS, 0.0), (Y_ATRAS, ALTO_BLOQUE), (Y_BLOQUE, ALTO_BLOQUE),
-              (Y_BLOQUE, TOPE_PLACA[1]), TOPE_PLACA]
-    o = prisma("cuerpo", [(y * MM, z * MM) for y, z in perfil], ANCHO * MM, m["negro"], bisel=1.2 * MM)
-    bpy.context.view_layer.objects.active = o
-    o.select_set(True)
-    bpy.ops.object.modifier_apply(modifier="bisel")
-    bm = bmesh.new()
-    bm.from_mesh(o.data)
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-    bm.to_mesh(o.data)
-    bm.free()
+def piso(m):
+    contorno = lambda a, b, z: [(x, y + PISO_Y, zz) for x, y, zz in ap.elipse(a, b, z, p=5.0)]
+    return ap.solido_lofteado("piso", [contorno(PISO_A - 0.8, PISO_B - 0.8, 0.0),
+                                       contorno(PISO_A, PISO_B, 0.8),
+                                       contorno(PISO_A, PISO_B, PISO_E)], m["negro"])
 
-    # agujeros: un solo objeto con los 4 cilindros, restado con el solver exacto
+
+def placa(m):
+    """Placa delgada inclinada: panel blanco, rieles azules, logo, nombre y cargo."""
+    a = math.radians(PLACA_ANG)
+    u = Vector((1, 0, 0))
+    v = Vector((0, math.cos(a), math.sin(a)))
+    n = u.cross(v)                                     # normal de la cara frontal (hacia adelante-arriba)
+    p0 = Vector((0, *PLACA_PIE)) * MM
+    en_cara = lambda s, x=0.0, sobre=0.0: p0 + v * (s * MM) + u * (x * MM) + n * (sobre * MM)
+
+    o = caja("placa_panel", (PLACA_ANCHO * MM, PLACA_ALTO * MM, PLACA_E * MM), (0, 0, 0), m["blanco"])
+    o.matrix_world = marco(en_cara(PLACA_ALTO / 2, 0, -PLACA_E / 2), u, v)
+    for k, s in enumerate((2.4, PLACA_ALTO - 2.4)):
+        r = caja(f"riel_{k + 1}", ((PLACA_ANCHO - 6) * MM, 1.4 * MM, 1.0 * MM), (0, 0, 0), m["azul"])
+        r.matrix_world = marco(en_cara(s, 0, 0.4), u, v)
+
+    x_logo, x_sep, x_texto = -55.0, -26.0, 29.0
+    _, ancho_logo = ap.logo("logo", marco(en_cara(PLACA_ALTO / 2, x_logo, -0.1), u, v), 15.0 * MM, 1.0 * MM,
+                            m["azul"])
+    sep = caja("filete_vertical", (0.8 * MM, 18 * MM, 1.0 * MM), (0, 0, 0), m["letras"])
+    sep.matrix_world = marco(en_cara(PLACA_ALTO / 2, x_sep, 0.4), u, v)
+    nombre = texto("texto_nombre", NOMBRE, ap.FUENTE_NOMBRE, 10.5 * MM, marco(en_cara(19.2, x_texto, -0.1), u, v),
+                   m["letras"], relieve=1.0 * MM, espaciado=1.03)
+    texto("texto_cargo", CARGO, ap.FUENTE_CARGO, 4.3 * MM, marco(en_cara(9.4, x_texto, -0.1), u, v),
+          m["letras"], relieve=1.0 * MM, espaciado=1.30)
+    fil = caja("filete", (76 * MM, 0.8 * MM, 1.0 * MM), (0, 0, 0), m["letras"])
+    fil.matrix_world = marco(en_cara(14.4, x_texto, 0.4), u, v)
+    bpy.context.view_layer.update()
+    print(f"logo {ancho_logo / MM:.1f} x 15 mm; nombre {nombre.dimensions.x / MM:.1f} mm")
+
+
+def moleculas(m):
+    """Dos unidades -[CH2-CH2]- grandes; devuelve los ejes (x, y) de los 4 agujeros y la altura tope."""
+    ap.ESCALA, ap.R_C, ap.R_H, ap.R_ENL = 30.0, 16.0, 9.5, 4.2
+    ap.LARGO_ABIERTO, ap.HUNDIDO, ap.Y_MOLECULA = 0.95, 1.0, 10.0
+    ejes, z_tope = [], 0.0
+    for x0, espejo in ((-X_MOLECULAS, False), (X_MOLECULAS, True)):
+        pts = ap.unidad_polietileno(m, PISO_E, x0=x0, espejo=espejo)
+        c1, c2 = pts[0] / MM, pts[1] / MM
+        for c, otro in ((c1, c2), (c2, c1)):
+            dx = math.copysign(DESCENTRADO, otro.x - c.x)
+            ejes.append((c.x + dx, c.y))
+            z_tope = max(z_tope, c.z + ap.R_C)
+    return ejes, z_tope
+
+
+def agujeros(ejes, z_tope):
+    """Resta los 4 agujeros verticales a carbonos, enlaces y piso (rebaje para la punta)."""
     cortes = []
-    for x in AGUJEROS_X:
-        bpy.ops.mesh.primitive_cylinder_add(vertices=64, radius=R_AGUJERO * MM, depth=(PROF_AGUJERO + 2) * MM,
-                                            location=(x * MM, Y_CENTRO_BLOQUE * MM,
-                                                      (ALTO_BLOQUE - PROF_AGUJERO / 2 + 1) * MM))
+    for x, y in ejes:
+        z0, z1 = PISO_E - REBAJE, z_tope + 4
+        bpy.ops.mesh.primitive_cylinder_add(vertices=64, radius=R_AGUJERO * MM, depth=(z1 - z0) * MM,
+                                            location=(x * MM, y * MM, (z0 + z1) / 2 * MM))
         cortes.append(bpy.context.object)
     bpy.ops.object.select_all(action="DESELECT")
     for c in cortes:
@@ -70,75 +112,44 @@ def cuerpo(m):
     bpy.context.view_layer.objects.active = cortes[0]
     bpy.ops.object.join()
     corte = bpy.context.object
-    mod = o.modifiers.new("agujeros", "BOOLEAN")
-    mod.operation = "DIFFERENCE"
-    mod.solver = "EXACT"
-    mod.object = corte
-    bpy.ops.object.select_all(action="DESELECT")
-    bpy.context.view_layer.objects.active = o
-    bpy.ops.object.modifier_apply(modifier="agujeros")
+    corte.name = "corte_agujeros"
+    for o in list(bpy.context.scene.objects):
+        if o.type != "MESH" or not o.name.startswith(("piso", "carbono_", "enlace_", "hidrogeno_")):
+            continue
+        mod = o.modifiers.new("agujeros", "BOOLEAN")
+        mod.operation = "DIFFERENCE"
+        mod.solver = "EXACT"
+        mod.object = corte
+        bpy.ops.object.select_all(action="DESELECT")
+        bpy.context.view_layer.objects.active = o
+        bpy.ops.object.modifier_apply(modifier="agujeros")
     bpy.data.objects.remove(corte)
-    ap.suavizar(o, math.radians(35))
-    return o
 
 
-def pedestal(m):
-    a, b, h = PEDESTAL
-    z0 = ALTO_BLOQUE - 0.4
-    contorno = lambda z: [(x, y + Y_CENTRO_BLOQUE, zz) for x, y, zz in ap.elipse(a / 2, b / 2, z, p=4.0)]
-    ap.solido_lofteado("pedestal", [contorno(z0), contorno(z0 + h)], m["azul"])
-    return z0 + h
+def lapiceros(ejes):
+    """Lapiceros de muestra (solo para el render, no se exportan)."""
+    colores = [material("tinta_negra", (0.01, 0.01, 0.012), rugosidad=0.25),
+               material("tinta_azul", (0.01, 0.03, 0.25), rugosidad=0.25),
+               material("metal", (0.8, 0.8, 0.82), rugosidad=0.2, metal=1.0)]
+    largos = (142, 136, 146, 139)
+    for k, ((x, y), largo) in enumerate(zip(ejes, largos)):
+        z0 = PISO_E - REBAJE
+        mat = colores[k % 2]
+        cilindro_entre(f"boligrafo_{k}", (x * MM, y * MM, z0 * MM), (x * MM, y * MM, (z0 + largo) * MM),
+                       4.6 * MM, mat, lados=32)
+        esfera(f"boligrafo_{k}_tapa", (x * MM, y * MM, (z0 + largo) * MM), 4.6 * MM, mat)
+        caja(f"boligrafo_{k}_clip", (1.6 * MM, 1.6 * MM, 38 * MM),
+             (x * MM, (y - 5.0) * MM, (z0 + largo - 22) * MM), colores[2])
 
 
-def frente(m):
-    """Panel blanco, rieles azules, logo, nombre y cargo sobre la cara inclinada."""
-    p0 = Vector((0, *PIE_PLACA)) * MM
-    p1 = Vector((0, *TOPE_PLACA)) * MM
-    v = (p1 - p0).normalized()
-    u = Vector((1, 0, 0))
-    n = u.cross(v)
-    largo = (p1 - p0).length / MM
-    en_cara = lambda s, x=0.0, sobre=0.0: p0 + v * (s * MM) + u * (x * MM) + n * (sobre * MM)
-
-    panel_ancho, panel_alto, panel_e = 186.0, 40.0, 1.2
-    o = caja("placa_panel", (panel_ancho * MM, panel_alto * MM, panel_e * MM), (0, 0, 0), m["blanco"])
-    o.matrix_world = marco(en_cara(largo / 2, 0, panel_e / 2 - 0.2), u, v)
-    for k, signo in enumerate((-1, 1)):
-        r = caja(f"riel_{k + 1}", ((panel_ancho + 6) * MM, 2.6 * MM, 2.2 * MM), (0, 0, 0), m["azul"])
-        r.matrix_world = marco(en_cara(largo / 2 + signo * (panel_alto / 2 + 1.3), 0, 1.1 - 0.2), u, v)
-
-    sup = panel_e - 0.2  # superficie del panel
-    x_logo, x_sep, x_texto = -58.0, -21.0, 38.0
-    _, ancho_logo = ap.logo("logo", marco(en_cara(largo / 2, x_logo, sup - 0.1), u, v), 19.0 * MM, 1.0 * MM,
-                            m["azul"])
-    sep = caja("filete_vertical", (0.8 * MM, 28 * MM, 1.0 * MM), (0, 0, 0), m["letras"])
-    sep.matrix_world = marco(en_cara(largo / 2, x_sep, sup + 0.4), u, v)
-    nombre = texto("texto_nombre", NOMBRE, ap.FUENTE_NOMBRE, 12.5 * MM,
-                   marco(en_cara(largo / 2 + 7.5, x_texto, sup - 0.1), u, v), m["letras"], relieve=1.0 * MM,
-                   espaciado=1.03)
-    texto("texto_cargo", CARGO, ap.FUENTE_CARGO, 5.0 * MM, marco(en_cara(largo / 2 - 10.5, x_texto, sup - 0.1), u, v),
-          m["letras"], relieve=1.0 * MM, espaciado=1.30)
-    fil = caja("filete", (88 * MM, 0.8 * MM, 1.0 * MM), (0, 0, 0), m["letras"])
-    fil.matrix_world = marco(en_cara(largo / 2 - 2.5, x_texto, sup + 0.4), u, v)
-    bpy.context.view_layer.update()
-    print(f"cara inclinada {largo:.1f} mm; logo {ancho_logo / MM:.1f} x 19 mm; nombre {nombre.dimensions.x / MM:.1f} mm")
-
-
-def molecula(m, z_apoyo):
-    # misma unidad -[CH2-CH2]- del adorno anterior, a escala del bloque
-    ap.ESCALA, ap.R_C, ap.R_H, ap.R_ENL = 26.0, 11.0, 7.8, 3.2
-    ap.LARGO_ABIERTO, ap.HUNDIDO, ap.Y_MOLECULA = 0.95, 1.2, Y_CENTRO_BLOQUE
-    return ap.unidad_polietileno(m, z_apoyo)
-
-
-COLORES = {"negro": ("cuerpo", "texto_", "filete", "carbono_"),
-           "azul": ("riel_", "logo", "pedestal"),
+COLORES = {"negro": ("piso", "texto_", "filete", "carbono_"),
+           "azul": ("riel_", "logo"),
            "blanco": ("placa_", "hidrogeno_", "enlace_")}
 
 VISTAS = {
-    "principal": dict(loc=(0.24, -0.42, 0.27), objetivo=(0, -0.008, 0.055), focal=55),
-    "frontal": dict(loc=(0.0, -0.50, 0.17), objetivo=(0, -0.01, 0.055), focal=58),
-    "lateral": dict(loc=(-0.36, -0.30, 0.30), objetivo=(0, 0.0, 0.06), focal=55),
+    "principal": dict(loc=(0.30, -0.52, 0.30), objetivo=(0, 0.0, 0.07), focal=75),
+    "frontal": dict(loc=(0.0, -0.60, 0.16), objetivo=(0, 0.0, 0.075), focal=72),
+    "lateral": dict(loc=(-0.42, -0.34, 0.34), objetivo=(0, 0.0, 0.065), focal=75),
 }
 
 
@@ -155,15 +166,16 @@ def main():
 
     sc = ap.escena(a.res, a.samples)
     m = ap.materiales()
-    cuerpo(m)
-    z_apoyo = pedestal(m)
-    frente(m)
-    pts = molecula(m, z_apoyo)
-    print("molécula: z máx centros", round(max(p.z for p in pts) / MM, 1), "mm")
+    piso(m)
+    placa(m)
+    ejes, z_tope = moleculas(m)
+    agujeros(ejes, z_tope)
+    print("agujeros (x, y) mm:", [(round(x, 1), round(y, 1)) for x, y in ejes], "tope", round(z_tope, 1))
+    lapiceros(ejes)
 
     for nombre in filter(None, a.vistas.split(",")):
         v = VISTAS[nombre]
-        camara(sc, v["loc"], v["objetivo"], v["focal"], (Vector((0, -0.04, 0.03)) - Vector(v["loc"])).length)
+        camara(sc, v["loc"], v["objetivo"], v["focal"], (Vector((0, -0.01, 0.04)) - Vector(v["loc"])).length)
         sc.camera.data.dof.aperture_fstop = 11.0
         sc.render.filepath = os.path.abspath(f"{a.out}_{nombre}.png")
         bpy.ops.render.render(write_still=True)
@@ -171,6 +183,8 @@ def main():
         bpy.data.objects.remove(sc.camera)
 
     if not a.sin_stl:
+        for o in [o for o in sc.objects if o.name.startswith("boligrafo")]:
+            bpy.data.objects.remove(o)
         ap.COLORES = COLORES
         ap.curvas_a_malla()
         carpeta = os.path.abspath(a.stl)

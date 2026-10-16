@@ -36,19 +36,22 @@ continúa). Conformación trans (zigzag), C–C–C 112°, H–C–H 109.5°.
 
 ---
 
-# Placa con porta-lapiceros (`placa_portalapiceros.3mf`)
+# Placa porta-lapiceros (`placa_portalapiceros.3mf`)
 
-Placa de nombre inclinada al frente (panel blanco con rieles azules, logo de
-Polímeros Norte en azul, nombre y cargo en negro) y, detrás, un bloque con
-**4 agujeros para lapiceros** (Ø 13 mm, 64 mm de profundidad). Encima del bloque,
-la unidad –[CH2–CH2]– sobre un pedestal azul.
+Versión delgada y económica: piso de 3 mm, placa de nombre inclinada de 3 mm
+(rieles azules, logo de Polímeros Norte en azul, nombre y cargo en negro) y,
+detrás, **dos unidades –[CH2–CH2]– que son el porta-lapiceros**: cada uno de los
+4 carbonos tiene un agujero vertical de Ø 13 mm que lo atraviesa y baja hasta un
+rebaje de 1.5 mm en el piso, donde se apoya la punta del lapicero.
 
 | Parte  | Filamento | Contiene |
 |--------|-----------|----------|
-| negro  | Negro     | cuerpo con los agujeros, nombre, cargo, filetes y carbonos |
-| azul   | Azul (#36427A) | rieles, logo y pedestal |
-| blanco | Blanco    | panel de la placa, hidrógenos y enlaces |
+| negro  | Negro     | piso, nombre, cargo, filetes y los 4 carbonos |
+| azul   | Azul (#36427A) | rieles y logo |
+| blanco | Blanco    | placa, hidrógenos y enlaces |
 
-Medidas: 200 × 103 mm de base, 76 mm de alto el bloque y ≈ 123 mm con la molécula.
+Medidas: 180 × 92 mm de base, ≈ 58 mm de alto (sin lapiceros).
 También: `placa_portalapiceros.blend` y `placa_portalapiceros_{negro,azul,blanco}.stl`.
-Imprimir de pie sobre la base; soportes *tree* solo para la molécula.
+
+Impresión: de pie sobre el piso; soportes *tree* solo bajo las moléculas
+(carbonos e hidrógenos). Con 2 paredes y 15 % de relleno gasta muy poco filamento.

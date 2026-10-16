@@ -124,7 +124,7 @@ def base(m):
     return z_tapa
 
 
-def unidad_polietileno(m, z_tapa):
+def unidad_polietileno(m, z_tapa, x0=0.0, espejo=False):
     """-[CH2-CH2]- con el zigzag de carbonos en el plano vertical, de frente al observador.
 
     C1 tiene sus dos H hacia abajo (adelante y atrás) y C2 los suyos hacia arriba;
@@ -157,7 +157,8 @@ def unidad_polietileno(m, z_tapa):
     todos = [c1, c2] + [h for _, h in hs] + [e for _, e in extremos]
     z_min = (rot @ h_bajo).z * ESCALA - R_H
     dz = z_tapa - HUNDIDO - z_min
-    w = lambda p: (rot @ p * ESCALA + Vector((0, Y_MOLECULA, dz))) * MM
+    refl = Matrix.Diagonal((-1, 1, 1)) if espejo else Matrix.Identity(3)
+    w = lambda p: (refl @ rot @ p * ESCALA + Vector((x0, Y_MOLECULA, dz))) * MM
 
     for i, c in enumerate((c1, c2)):
         esfera(f"carbono_{i + 1}", w(c), R_C * MM, m["negro"])
