@@ -1,16 +1,26 @@
 # Adorno de escritorio – Polietileno (Claudio Alvarez S., Coordinador de I+D)
 
-Cuatro STL en milímetros, **todos con el mismo origen**: se cargan juntos como
-partes de un solo objeto y cada uno se asigna a un filamento.
+## Archivo principal: `adorno_polietileno.3mf`
 
-| Archivo | Color | Contiene |
-|---|---|---|
-| `adorno_polietileno_negro.stl`  | Negro  | cuerpo de la base, letras, filete y los 2 carbonos |
-| `adorno_polietileno_rojo.stl`   | Rojo   | aro de la base y todos los enlaces |
-| `adorno_polietileno_azul.stl`   | Azul   | tapa de la base |
-| `adorno_polietileno_blanco.stl` | Blanco | placa del nombre y los 4 hidrógenos |
+Un solo objeto con **3 partes, una por color**, en milímetros:
 
-Medidas: base 172 × 106 mm, altura total ≈ 67 mm.
+| Parte  | Filamento | Contiene |
+|--------|-----------|----------|
+| negro  | Negro     | cuerpo de la base, nombre, cargo, filetes y los 2 carbonos |
+| azul   | Azul (#36427A, azul del logo) | tapa de la base y logo de Polímeros Norte |
+| blanco | Blanco    | aro de la base, placa, 4 hidrógenos y enlaces |
+
+En Bambu Studio / OrcaSlicer / PrusaSlicer: *Abrir* el 3MF → en la lista de objetos
+aparecen las 3 partes → asignar a cada una su filamento → laminar.
+
+Medidas: base 190 × 110 mm, altura total ≈ 67 mm.
+
+## Otros archivos
+
+- `adorno_polietileno.blend` – el modelo en Blender, todo en mallas, una colección por color
+  (`imprimir_negro`, `imprimir_azul`, `imprimir_blanco`). Se puede exportar desde Blender.
+- `adorno_polietileno_negro.stl`, `_azul.stl`, `_blanco.stl` – los mismos cuerpos por separado y con
+  el mismo origen; si se cargan juntos, responder **Sí** a "¿cargar como un objeto con varias partes?".
 
 ## Química
 
@@ -20,9 +30,6 @@ continúa). Conformación trans (zigzag), C–C–C 112°, H–C–H 109.5°.
 
 ## Impresión sugerida
 
-- **Multicolor (AMS / MMU):** en Bambu Studio u Orca: *Importar* los 4 STL a la vez →
-  "¿Cargar como un solo objeto con varias partes?" → **Sí**. Asignar un filamento a cada parte.
-  Capa 0.12–0.16 mm (letras de 0.9 mm de relieve), soportes *tree* solo para la molécula.
-- **Un solo color por pieza:** imprimir la base (negro + azul + rojo) y la placa por
-  separado; la molécula se apoya en tres puntos (dos hidrógenos y la punta de un
-  enlace) que entran 1.6 mm en la tapa: imprimirla aparte con soportes, pintar y pegar.
+- Capa 0.12–0.16 mm (letras y logo con 0.9 mm de relieve), boquilla 0.4 mm.
+- Soportes *tree* solo para la molécula (se apoya en tres puntos que entran 1.6 mm en la tapa).
+- El enlace fino del logo se engrosó para que quede imprimible (~0.4 mm).

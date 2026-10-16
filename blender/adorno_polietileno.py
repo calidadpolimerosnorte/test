@@ -7,17 +7,22 @@ Química correcta: cada carbono tiene exactamente 2 hidrógenos y 2 enlaces C
 (el enlace C-C central y un enlace abierto que indica que la cadena continúa),
 con ángulos C-C-C 112°, H-C-H 109.5° y conformación trans (zigzag).
 
-Colores de impresión (un STL por color, todos en el mismo origen y en mm):
-  negro  - cuerpo de la base, letras y carbonos
-  rojo   - aro de la base y enlaces
-  azul   - tapa de la base
-  blanco - placa del nombre e hidrógenos
+Incluye el logo de Polímeros Norte en relieve azul sobre la placa.
+
+Colores de impresión (sin rojo):
+  negro  - cuerpo de la base, letras, filetes y carbonos
+  azul   - tapa de la base y logo (#36427A, azul del logo)
+  blanco - aro de la base, placa, hidrógenos y enlaces
+
+Salida para imprimir en imprimir_3d/: un 3MF multiparte (una parte por color),
+un STL por color y un .blend con todo en mallas, en mm y con el mismo origen.
 
 Uso:
-  python3 blender/adorno_polietileno.py                 # renders + STL
+  python3 blender/adorno_polietileno.py                 # renders + 3MF + STL + .blend
   python3 blender/adorno_polietileno.py --samples 32 --res 0.4 --sin-stl
 """
 import argparse
+import json
 import math
 import os
 import sys
@@ -28,19 +33,21 @@ from mathutils import Matrix, Vector
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from adornos_escritorio import (  # noqa: E402
-    AQUI, BLANCO, CARGO, NEGRO, NOMBRE, ROJO,
+    AQUI, BLANCO, CARGO, NEGRO, NOMBRE,
     caja, camara, cilindro_entre, esfera, marco, material, prisma, suavizar, texto,
 )
 
 MM = 0.001
+AZUL_LOGO = (0.018, 0.028, 0.12)  # tono de render del azul del logo (#36427A)
+LOGO = os.path.join(AQUI, "logo", "polimeros_norte.json")
 # fuentes estáticas sin contornos superpuestos: las letras salen como sólidos cerrados
 FUENTE_NOMBRE = os.path.join(AQUI, "fuentes", "PlayfairDisplay-SemiBold.ttf")
 FUENTE_CARGO = os.path.join(AQUI, "fuentes", "Montserrat-Medium.ttf")
 
 # Base ovalada (semiejes en mm)
-A, B = 86.0, 53.0
-EXPONENTE = 3.6
-H_CUERPO, H_ARO, H_TAPA = 11.0, 3.4, 2.6   # el aro rojo sobresale 0.8 mm sobre la tapa azul
+A, B = 95.0, 55.0
+EXPONENTE = 4.0
+H_CUERPO, H_ARO, H_TAPA = 11.0, 3.4, 2.6   # el aro blanco sobresale 0.8 mm sobre la tapa azul
 ANCHO_ARO = 3.2
 
 # Molécula: 1 Å -> 26 mm
@@ -106,12 +113,12 @@ def _objeto(nombre, vs, caras, mat):
 
 
 def base(m):
-    """Cuerpo negro con chaflán inferior, aro rojo y tapa azul."""
+    """Cuerpo negro con chaflán inferior, aro blanco y tapa azul."""
     z_tapa = H_CUERPO + H_TAPA
     anillos = [elipse(A - 2.0, B - 2.0, 0.0), elipse(A - 0.4, B - 0.4, 0.4), elipse(A, B, 2.0),
                elipse(A, B, H_CUERPO)]
     solido_lofteado("base_cuerpo", anillos, m["negro"])
-    anillo_eliptico("base_aro", A, B, ANCHO_ARO, H_CUERPO, H_CUERPO + H_ARO, m["rojo"])
+    anillo_eliptico("base_aro", A, B, ANCHO_ARO, H_CUERPO, H_CUERPO + H_ARO, m["blanco"])
     a, b = A - ANCHO_ARO, B - ANCHO_ARO
     solido_lofteado("base_tapa", [elipse(a, b, H_CUERPO), elipse(a, b, z_tapa)], m["azul"])
     return z_tapa
@@ -154,21 +161,42 @@ def unidad_polietileno(m, z_tapa):
 
     for i, c in enumerate((c1, c2)):
         esfera(f"carbono_{i + 1}", w(c), R_C * MM, m["negro"])
-    cilindro_entre("enlace_CC", w(c1), w(c2), R_ENL * MM, m["rojo"], lados=32)
+    cilindro_entre("enlace_CC", w(c1), w(c2), R_ENL * MM, m["blanco"], lados=32)
     for k, (c, h) in enumerate(hs):
         esfera(f"hidrogeno_{k + 1}", w(h), R_H * MM, m["blanco"])
-        cilindro_entre(f"enlace_CH_{k + 1}", w(c), w(h), R_ENL * MM, m["rojo"], lados=32)
+        cilindro_entre(f"enlace_CH_{k + 1}", w(c), w(h), R_ENL * MM, m["blanco"], lados=32)
     for k, (c, e) in enumerate(extremos):
-        cilindro_entre(f"enlace_cadena_{k + 1}", w(c), w(e), R_ENL * MM, m["rojo"], lados=32)
-        esfera(f"enlace_cadena_{k + 1}_punta", w(e), R_ENL * MM, m["rojo"])
+        cilindro_entre(f"enlace_cadena_{k + 1}", w(c), w(e), R_ENL * MM, m["blanco"], lados=32)
+        esfera(f"enlace_cadena_{k + 1}_punta", w(e), R_ENL * MM, m["blanco"])
     print(f"inclinación {math.degrees(ang):.1f}°")
     return [w(p) for p in todos]
 
 
+def logo(nombre, matriz, alto, relieve, mat):
+    """Logo de Polímeros Norte en relieve (curva 2D rellena a partir de los contornos vectorizados)."""
+    with open(LOGO) as f:
+        datos = json.load(f)
+    cu = bpy.data.curves.new(nombre, "CURVE")
+    cu.dimensions = "2D"
+    cu.fill_mode = "BOTH"
+    cu.extrude = relieve / 2 / alto
+    for contorno in datos["contornos"]:
+        sp = cu.splines.new("POLY")
+        sp.points.add(len(contorno) - 1)
+        for pt, (x, y) in zip(sp.points, contorno):
+            pt.co = (x, y, 0, 1)
+        sp.use_cyclic_u = True
+    o = bpy.data.objects.new(nombre, cu)
+    bpy.context.scene.collection.objects.link(o)
+    o.matrix_world = matriz @ Matrix.Translation((0, 0, relieve / 2)) @ Matrix.Scale(alto, 4)
+    o.data.materials.append(mat)
+    return o, datos["ancho"] * alto
+
+
 def placa(m, z_tapa):
-    """Placa blanca en cuña al frente, con nombre y cargo en relieve negro."""
-    prof_abajo, prof_arriba, alto, ancho = 15.0, 4.0, 18.0, 124.0
-    y_frente = -B + ANCHO_ARO + 5.0
+    """Placa blanca en cuña al frente: logo azul a la izquierda; nombre y cargo en negro a la derecha."""
+    prof_abajo, prof_arriba, alto, ancho = 15.0, 4.0, 18.0, 146.0
+    y_frente = -B + ANCHO_ARO + 6.0
     perfil = [(y_frente, 0), (y_frente + prof_abajo, 0), (y_frente + prof_abajo, alto),
               (y_frente + prof_abajo - prof_arriba, alto)]
     perfil = [(y * MM, (z + z_tapa - 0.4) * MM) for y, z in perfil]
@@ -176,16 +204,25 @@ def placa(m, z_tapa):
 
     v = Vector((0, prof_abajo - prof_arriba, alto)).normalized()
     u = Vector((1, 0, 0))
+    n = u.cross(v)
     largo = math.hypot(prof_abajo - prof_arriba, alto)
     pie = Vector((0, y_frente, z_tapa - 0.4)) * MM
-    en_cara = lambda s: pie + v * (s * MM) + u.cross(v) * (-0.15 * MM)
-    texto("texto_nombre", NOMBRE, FUENTE_NOMBRE, 10.5 * MM, marco(en_cara(largo * 0.66), u, v),
-                   m["letras"], relieve=0.9 * MM, espaciado=1.04)
-    texto("texto_cargo", CARGO, FUENTE_CARGO, 4.2 * MM, marco(en_cara(largo * 0.19), u, v),
-                  m["letras"], relieve=0.9 * MM, espaciado=1.32)
-    # filete fino entre nombre y cargo
-    o = caja("filete", (84 * MM, 0.7 * MM, 0.9 * MM), (0, 0, 0), m["letras"])
-    o.matrix_world = marco(en_cara(largo * 0.40) + u.cross(v) * (0.45 * MM), u, v)
+    en_cara = lambda s, x=0.0: pie + v * (s * MM) + u * (x * MM) + n * (-0.15 * MM)
+
+    # logo a la izquierda, separador vertical y bloque de nombre a la derecha
+    x_logo, x_sep, x_texto = -47.0, -20.5, 25.0
+    _, ancho_logo = logo("logo", marco(en_cara(largo * 0.5, x_logo), u, v), 12.5 * MM, 0.9 * MM, m["azul"])
+    print(f"logo: {ancho_logo / MM:.1f} x 12.5 mm")
+    sep = caja("filete_vertical", (0.7 * MM, largo * 0.62 * MM, 0.9 * MM), (0, 0, 0), m["letras"])
+    sep.matrix_world = marco(en_cara(largo * 0.5, x_sep) + n * (0.45 * MM), u, v)
+    nombre = texto("texto_nombre", NOMBRE, FUENTE_NOMBRE, 11.0 * MM, marco(en_cara(largo * 0.66, x_texto), u, v),
+                   m["letras"], relieve=0.9 * MM, espaciado=1.03)
+    texto("texto_cargo", CARGO, FUENTE_CARGO, 3.9 * MM, marco(en_cara(largo * 0.19, x_texto), u, v),
+          m["letras"], relieve=0.9 * MM, espaciado=1.30)
+    bpy.context.view_layer.update()
+    print(f"nombre: {nombre.dimensions.x / MM:.1f} mm de ancho")
+    fil = caja("filete", (80 * MM, 0.7 * MM, 0.9 * MM), (0, 0, 0), m["letras"])
+    fil.matrix_world = marco(en_cara(largo * 0.40, x_texto) + n * (0.45 * MM), u, v)
 
 
 # ---------------------------------------------------------------- escena
@@ -244,37 +281,45 @@ def materiales():
     pla = dict(rugosidad=0.38, barniz=0.15)
     return {
         "negro": material("PLA_negro", NEGRO, **pla),
-        "rojo": material("PLA_rojo", ROJO, **pla),
-        "azul": material("PLA_azul", (0.006, 0.03, 0.16), **pla),
+        "azul": material("PLA_azul", AZUL_LOGO, rugosidad=0.45),
         "blanco": material("PLA_blanco", BLANCO, **pla),
         "letras": material("PLA_negro_mate", NEGRO, rugosidad=0.7),
     }
 
 
 COLORES = {"negro": ("base_cuerpo", "texto_", "filete", "carbono_"),
-           "rojo": ("base_aro", "enlace_"),
-           "azul": ("base_tapa",),
-           "blanco": ("placa", "hidrogeno_")}
+           "azul": ("base_tapa", "logo"),
+           "blanco": ("base_aro", "placa", "hidrogeno_", "enlace_")}
+COLOR_HEX = {"negro": "#141414FF", "azul": "#36427AFF", "blanco": "#F2F2F2FF"}
 
 
-def exportar_stl(carpeta):
-    os.makedirs(carpeta, exist_ok=True)
+def curvas_a_malla():
+    """Convierte letras y logo en mallas cerradas (sin vértices duplicados)."""
     for o in list(bpy.context.scene.objects):
-        if o.type == "FONT":
-            o.data.bevel_depth = 0.0  # sin redondeo: letras cerradas y de bordes nítidos
+        if o.type in ("FONT", "CURVE"):
+            if o.type == "FONT":
+                o.data.bevel_depth = 0.0  # sin redondeo: letras cerradas y de bordes nítidos
             bpy.ops.object.select_all(action="DESELECT")
             o.select_set(True)
             bpy.context.view_layer.objects.active = o
             bpy.ops.object.convert(target="MESH")
             bm = bmesh.new()
             bm.from_mesh(o.data)
-            bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-6)
+            bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-7)
             bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
             bm.to_mesh(o.data)
             bm.free()
-    for color, prefijos in COLORES.items():
+
+
+def piezas(color):
+    return [o for o in bpy.context.scene.objects if o.type == "MESH" and o.name.startswith(COLORES[color])]
+
+
+def exportar_stl(carpeta):
+    os.makedirs(carpeta, exist_ok=True)
+    for color in COLORES:
         bpy.ops.object.select_all(action="DESELECT")
-        sel = [o for o in bpy.context.scene.objects if o.type == "MESH" and o.name.startswith(prefijos)]
+        sel = piezas(color)
         for o in sel:
             o.select_set(True)
         bpy.context.view_layer.objects.active = sel[0]
@@ -282,6 +327,59 @@ def exportar_stl(carpeta):
         bpy.ops.wm.stl_export(filepath=ruta, export_selected_objects=True, global_scale=1000.0,
                               apply_modifiers=True, ascii_format=False)
         print("stl:", ruta, len(sel), "piezas")
+
+
+def exportar_3mf(ruta):
+    """3MF de un solo objeto con una parte por color (negro, azul, blanco), en mm.
+
+    Bambu Studio / OrcaSlicer / PrusaSlicer lo abren como un objeto multiparte:
+    solo hay que asignar un filamento a cada parte.
+    """
+    import zipfile
+    dg = bpy.context.evaluated_depsgraph_get()
+    mats = "".join(f'<base name="{c.capitalize()}" displaycolor="{COLOR_HEX[c]}"/>' for c in COLORES)
+    objetos, comps = [], []
+    for k, color in enumerate(COLORES):
+        vs, ts = [], []
+        for o in piezas(color):
+            ev = o.evaluated_get(dg)
+            me = ev.to_mesh()
+            me.calc_loop_triangles()
+            base = len(vs)
+            mw = o.matrix_world
+            vs += [mw @ vt.co / MM for vt in me.vertices]
+            ts += [tuple(base + i for i in tri.vertices) for tri in me.loop_triangles]
+            ev.to_mesh_clear()
+        xml_v = "".join(f'<vertex x="{p.x:.4f}" y="{p.y:.4f}" z="{p.z:.4f}"/>' for p in vs)
+        xml_t = "".join(f'<triangle v1="{a}" v2="{b}" v3="{c}"/>' for a, b, c in ts)
+        oid = k + 2
+        objetos.append(f'<object id="{oid}" type="model" name="{color}" pid="1" pindex="{k}">'
+                       f'<mesh><vertices>{xml_v}</vertices><triangles>{xml_t}</triangles></mesh></object>')
+        comps.append(f'<component objectid="{oid}"/>')
+        print(f"3mf: parte {color}: {len(vs)} vértices, {len(ts)} triángulos")
+    padre = len(COLORES) + 2
+    modelo = ('<?xml version="1.0" encoding="UTF-8"?>'
+              '<model unit="millimeter" xml:lang="es-PE" '
+              'xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">'
+              '<metadata name="Title">Adorno polietileno - Claudio Alvarez S.</metadata>'
+              '<metadata name="Designer">Polímeros Norte - I+D</metadata>'
+              f'<resources><basematerials id="1">{mats}</basematerials>{"".join(objetos)}'
+              f'<object id="{padre}" type="model" name="Adorno polietileno"><components>{"".join(comps)}'
+              f'</components></object></resources><build><item objectid="{padre}"/></build></model>')
+    tipos = ('<?xml version="1.0" encoding="UTF-8"?>'
+             '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+             '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+             '<Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>'
+             '</Types>')
+    rels = ('<?xml version="1.0" encoding="UTF-8"?>'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Target="/3D/3dmodel.model" Id="rel0" '
+            'Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/></Relationships>')
+    with zipfile.ZipFile(ruta, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", tipos)
+        z.writestr("_rels/.rels", rels)
+        z.writestr("3D/3dmodel.model", modelo)
+    print("3mf:", ruta)
 
 
 VISTAS = {
@@ -320,9 +418,20 @@ def main():
         print("render:", sc.render.filepath)
         bpy.data.objects.remove(sc.camera)
 
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(AQUI, "adorno_polietileno.blend"))
     if not a.sin_stl:
-        exportar_stl(os.path.abspath(a.stl))
+        curvas_a_malla()
+        carpeta = os.path.abspath(a.stl)
+        exportar_stl(carpeta)
+        exportar_3mf(os.path.join(carpeta, "adorno_polietileno.3mf"))
+        # .blend listo para imprimir: todo en mallas, una colección por color
+        for color in COLORES:
+            col = bpy.data.collections.new(f"imprimir_{color}")
+            bpy.context.scene.collection.children.link(col)
+            for o in piezas(color):
+                for c in o.users_collection:
+                    c.objects.unlink(o)
+                col.objects.link(o)
+        bpy.ops.wm.save_as_mainfile(filepath=os.path.join(carpeta, "adorno_polietileno.blend"))
 
 
 if __name__ == "__main__":
