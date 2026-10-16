@@ -33,3 +33,22 @@ continúa). Conformación trans (zigzag), C–C–C 112°, H–C–H 109.5°.
 - Capa 0.12–0.16 mm (letras y logo con 0.9 mm de relieve), boquilla 0.4 mm.
 - Soportes *tree* solo para la molécula (se apoya en tres puntos que entran 1.6 mm en la tapa).
 - El enlace fino del logo se engrosó para que quede imprimible (~0.4 mm).
+
+---
+
+# Placa con porta-lapiceros (`placa_portalapiceros.3mf`)
+
+Placa de nombre inclinada al frente (panel blanco con rieles azules, logo de
+Polímeros Norte en azul, nombre y cargo en negro) y, detrás, un bloque con
+**4 agujeros para lapiceros** (Ø 13 mm, 64 mm de profundidad). Encima del bloque,
+la unidad –[CH2–CH2]– sobre un pedestal azul.
+
+| Parte  | Filamento | Contiene |
+|--------|-----------|----------|
+| negro  | Negro     | cuerpo con los agujeros, nombre, cargo, filetes y carbonos |
+| azul   | Azul (#36427A) | rieles, logo y pedestal |
+| blanco | Blanco    | panel de la placa, hidrógenos y enlaces |
+
+Medidas: 200 × 103 mm de base, 76 mm de alto el bloque y ≈ 123 mm con la molécula.
+También: `placa_portalapiceros.blend` y `placa_portalapiceros_{negro,azul,blanco}.stl`.
+Imprimir de pie sobre la base; soportes *tree* solo para la molécula.

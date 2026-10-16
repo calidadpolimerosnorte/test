@@ -315,7 +315,7 @@ def piezas(color):
     return [o for o in bpy.context.scene.objects if o.type == "MESH" and o.name.startswith(COLORES[color])]
 
 
-def exportar_stl(carpeta):
+def exportar_stl(carpeta, prefijo="adorno_polietileno"):
     os.makedirs(carpeta, exist_ok=True)
     for color in COLORES:
         bpy.ops.object.select_all(action="DESELECT")
@@ -323,13 +323,13 @@ def exportar_stl(carpeta):
         for o in sel:
             o.select_set(True)
         bpy.context.view_layer.objects.active = sel[0]
-        ruta = os.path.join(carpeta, f"adorno_polietileno_{color}.stl")
+        ruta = os.path.join(carpeta, f"{prefijo}_{color}.stl")
         bpy.ops.wm.stl_export(filepath=ruta, export_selected_objects=True, global_scale=1000.0,
                               apply_modifiers=True, ascii_format=False)
         print("stl:", ruta, len(sel), "piezas")
 
 
-def exportar_3mf(ruta):
+def exportar_3mf(ruta, titulo="Adorno polietileno"):
     """3MF de un solo objeto con una parte por color (negro, azul, blanco), en mm.
 
     Bambu Studio / OrcaSlicer / PrusaSlicer lo abren como un objeto multiparte:
@@ -361,10 +361,10 @@ def exportar_3mf(ruta):
     modelo = ('<?xml version="1.0" encoding="UTF-8"?>'
               '<model unit="millimeter" xml:lang="es-PE" '
               'xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">'
-              '<metadata name="Title">Adorno polietileno - Claudio Alvarez S.</metadata>'
+              f'<metadata name="Title">{titulo} - Claudio Alvarez S.</metadata>'
               '<metadata name="Designer">Polímeros Norte - I+D</metadata>'
               f'<resources><basematerials id="1">{mats}</basematerials>{"".join(objetos)}'
-              f'<object id="{padre}" type="model" name="Adorno polietileno"><components>{"".join(comps)}'
+              f'<object id="{padre}" type="model" name="{titulo}"><components>{"".join(comps)}'
               f'</components></object></resources><build><item objectid="{padre}"/></build></model>')
     tipos = ('<?xml version="1.0" encoding="UTF-8"?>'
              '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
