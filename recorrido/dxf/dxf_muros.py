@@ -23,7 +23,11 @@ def restar(m, p):
     return [m]
 for p in puertas:
     muros = [s for m in muros for s in restar(m, p)]
-cols = [list(r) for t, n, r, rot in res['10_ESTRUCTURA_COLUMNA_HORMIGON'] if dentro(r, 2.5, 1.5, 51.5, 61.5) and not (abs((r[2]-r[0]) - 0.35) < 0.02 and abs((r[3]-r[1]) - 0.6) < 0.02)]
+# Columnas de los pórticos de las naves (0,35 x 0,60 y 0,50 x 0,50) hasta el arranque del arco (+6,15); las de amarre del cerco hasta la viga (+3,55)
+def alto_col(r):
+    w, d = r[2] - r[0], r[3] - r[1]
+    return 6.15 if (abs(w - 0.35) < 0.02 and abs(d - 0.6) < 0.02) or (abs(w - 0.5) < 0.02 and abs(d - 0.5) < 0.02) else 3.55
+cols = [list(r) + [alto_col(r)] for t, n, r, rot in res['10_ESTRUCTURA_COLUMNA_HORMIGON'] if dentro(r, 2.5, 1.5, 51.5, 61.5)]
 cols = [c for i, c in enumerate(cols) if c not in cols[:i]]
 f = lambda a: '[' + ','.join(f'{v:.2f}'.rstrip('0').rstrip('.') for v in a) + ']'
 print('const MUROS_PF = [' + ','.join(f(m) for m in muros) + '];')
