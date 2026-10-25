@@ -146,63 +146,84 @@ const muros = (o, tramos) => tramos.map(([x0, y0, x1, y1]) => x0 === x1
   : { n: '', t: 'muro', x: x0 - o[0], y: y0 - o[1] - 1.5, w: x1 - x0, d: 3, h: 0 });
 
 const oPF = [25, 140];
+// Plano a escala PLANO POLIMEROS DEL NORTE.dxf (metros, y hacia el norte). El cerco va de
+// x 2,84 a 50,89 y de y 2,04 a 61,14: se pasa a unidades del plano 2D con el muro oeste en
+// x = 0 y el muro norte (el del portón) en y = 0. Lo que sale del DXF va con medida exacta.
+const DXF = { x: 2.84, y: 61.14 };
+const du = x => (x - DXF.x) * 17.5, dv = y => (DXF.y - y) * 17.5;
+const rd = (x0, y0, x1, y1) => ({ x: du(x0), y: dv(y1), w: (x1 - x0) * 17.5, d: (y1 - y0) * 17.5 });
+/** Pieza con su rect del DXF [x0, y0, x1, y1] (m) y alto (m). */
+const pd = (n, t, [x0, y0, x1, y1], h, op = {}) => ({ n, t, ...rd(x0, y0, x1, y1), h: h * 17.5, exacta: true, sprite: op.sprite || '', alto: op.alto, color: op.color, puntos: [] });
+const MUROS_PF = [[3.36,60.99,4.71,61.14,3.15],[5.24,60.99,6.86,61.14,3.15],[7.11,60.99,8.97,61.14,3.15],[18.14,60.99,21.03,61.14,3.15],[21.28,60.99,24.17,61.14,3.15],[24.7,60.99,27.7,61.14,3.15],[27.95,60.99,30.95,61.14,3.15],[31.2,60.99,34.2,61.14,3.15],[34.72,60.99,37.72,61.14,3.15],[37.97,60.99,40.97,61.14,3.15],[41.22,60.99,44.22,61.14,3.15],[50.74,44.41,50.89,47.41,3.15],[50.74,41.16,50.89,44.16,3.15],[50.74,37.91,50.89,40.91,3.15],[50.74,34.39,50.89,37.39,3.15],[50.74,31.14,50.89,34.14,3.15],[50.74,27.89,50.89,30.89,3.15],[50.74,23.61,50.89,26.71,3.15],[50.74,20.25,50.89,23.36,3.15],[50.74,16.89,50.89,20,3.15],[50.74,13.26,50.89,16.37,3.15],[50.74,9.9,50.89,13.01,3.15],[50.74,6.55,50.89,9.65,3.15],[50.74,2.91,50.89,6.02,3.15],[44.97,27.44,50.54,27.59,3.15],[41.26,27.44,44.62,27.59,3.15],[33.15,27.44,38.71,27.59,3.15],[27.24,27.44,32.8,27.59,3.15],[20.92,27.44,26.49,27.59,3.15],[15.01,27.44,20.57,27.59,3.15],[9.1,27.44,12.46,27.59,3.15],[3.19,27.44,8.75,27.59,3.15],[2.84,23.76,2.99,26.99,3.15],[2.84,20.83,2.99,23.46,3.15],[2.84,17.89,2.99,20.53,3.15],[2.84,14.96,2.99,17.59,3.15],[2.84,12.03,2.99,14.66,3.15],[2.84,9.1,2.99,11.73,3.15],[2.84,6.17,2.99,8.8,3.15],[2.84,2.64,2.99,5.87,3.15],[3.19,2.04,8.75,2.19,3.15],[9.1,2.04,14.66,2.19,3.15],[15.01,2.04,20.57,2.19,3.15],[20.92,2.04,26.49,2.19,3.15],[27.24,2.04,32.8,2.19,3.15],[33.15,2.04,38.71,2.19,3.15],[39.06,2.04,44.62,2.19,3.15],[44.97,2.04,50.54,2.19,3.15],[2.84,27.89,2.99,30.89,3.15],[2.84,31.14,2.99,34.14,3.15],[2.84,34.66,2.99,37.66,3.15],[2.84,37.91,2.99,40.91,3.15],[2.84,41.16,2.99,44.16,3.15],[2.84,44.69,2.99,47.69,3.15],[2.84,47.94,2.99,50.94,3.15],[2.84,51.19,2.99,54.19,3.15],[2.84,54.71,2.99,57.71,3.15],[2.84,57.96,2.99,60.89,3.15],[50.74,51.29,50.89,54.43,3.15],[50.74,47.94,50.89,51.04,3.15],[38.58,23.49,38.68,27.11,4.2],[27.27,19.51,27.37,21.66,4.2],[27.47,19.31,31.01,19.41,4.2],[31.21,19.31,33.85,19.41,4.2],[38.58,19.51,38.68,21.66,4.2],[27.27,21.86,27.37,27.11,4.2],[26.95,34.58,31.03,34.68,5],[31.23,34.58,34.77,34.68,5],[34.97,34.58,38.72,34.68,5],[38.82,27.79,38.92,31.03,5],[34.95,19.31,38.48,19.41,4.2],[38.82,34.27,38.92,34.48,5],[38.82,31.23,38.92,32.67,5],[34.85,19.51,34.95,21.66,4.2],[31.21,21.66,34.75,21.76,4.2],[27.47,21.66,31.01,21.76,4.2],[22.98,23.58,23.08,29.4,3.15],[22.98,30.3,23.08,30.4,3.15],[23.98,23.58,27.27,23.68,3.15],[23.98,30.35,26.57,30.45,3.15],[23.98,27.59,24.03,30.45,3.15],[26.52,27.59,26.57,45.48,3.15],[26.57,45.43,37.55,45.48,3.15],[39.75,45.43,50.74,45.48,3.15]];
+const COLUMNAS_PF = [[50.64,47.69,50.89,47.94],[50.64,54.43,50.89,54.71],[3.11,60.89,3.36,61.14],[4.71,60.89,4.96,61.14],[4.99,60.89,5.24,61.14],[6.86,60.89,7.11,61.14],[8.97,60.89,9.22,61.14],[2.84,60.89,3.09,61.14],[17.89,60.89,18.14,61.14],[21.03,60.89,21.28,61.14],[24.17,60.89,24.42,61.14],[24.45,60.89,24.7,61.14],[27.7,60.89,27.95,61.14],[30.95,60.89,31.2,61.14],[34.2,60.89,34.45,61.14],[34.47,60.89,34.72,61.14],[37.72,60.89,37.97,61.14],[40.97,60.89,41.22,61.14],[44.22,60.89,44.47,61.14],[44.38,60.76,44.68,61.13],[46.37,58.71,46.73,59.06],[48.45,56.63,48.81,56.98],[50.5,54.63,50.88,54.93],[50.64,47.41,50.89,47.66],[50.64,44.16,50.89,44.41],[50.64,40.91,50.89,41.16],[50.64,37.66,50.89,37.91],[50.64,37.39,50.89,37.64],[50.64,34.14,50.89,34.39],[50.64,30.89,50.89,31.14],[50.64,27.64,50.89,27.89],[50.64,26.71,50.89,26.96],[50.64,23.36,50.89,23.61],[50.64,20,50.89,20.25],[50.64,16.64,50.89,16.89],[50.64,16.37,50.89,16.62],[50.64,13.01,50.89,13.26],[50.64,9.65,50.89,9.9],[50.64,6.3,50.89,6.55],[50.64,6.02,50.89,6.27],[50.64,2.66,50.89,2.91],[2.84,5.87,3.24,6.17],[2.84,8.8,3.24,9.1],[2.84,11.73,3.24,12.03],[2.84,14.66,3.24,14.96],[2.84,17.59,3.24,17.89],[2.84,20.53,3.24,20.83],[2.84,23.46,3.24,23.76],[2.84,27.64,3.09,27.89],[2.84,30.89,3.09,31.14],[2.84,34.14,3.09,34.39],[2.84,34.41,3.09,34.66],[2.84,37.66,3.09,37.91],[2.84,40.91,3.09,41.16],[2.84,44.16,3.09,44.41],[2.84,44.44,3.09,44.69],[2.84,47.69,3.09,47.94],[2.84,50.94,3.09,51.19],[2.84,54.19,3.09,54.44],[2.84,54.46,3.09,54.71],[2.84,57.71,3.09,57.96],[50.64,51.04,50.89,51.29],[26.57,44.98,27.07,45.48],[26.57,39.67,27.07,40.17],[26.57,34.38,27.07,34.88],[26.57,28.75,27.07,29.25],[50.24,44.98,50.74,45.48],[50.24,39.68,50.74,40.18],[50.24,34.39,50.74,34.89],[50.24,28.76,50.74,29.26]];
 const PF = {
   sede: 'Piura Futura',
-  sitio: rr(oPF, 25, 140, 885, 1180),
-  naves: [rr(oPF, 25, 730, 865, 1180), rr(oPF, 445, 400, 860, 730)],
-  // [alero, flecha] del arco (m): producción según E-02 (+6,15, flecha 5,05); almacén con cumbrera a 8,21 (metrado de cubierta)
-  techos: [[6.15, 5.05], [6.15, 2.06]],
-  montacargas: [[505, 345, 0]],
+  sitio: rd(2.84, 2.04, 50.89, 61.14),
+  naves: [rd(2.84, 2.04, 50.89, 27.59), rd(26.57, 27.59, 50.89, 45.43)],
+  // [alero, flecha, ejes de cerchas desde el extremo (m), sentido de la luz]: producción según E-02 (+6,15, flecha 5,05) y
+  // tijerales del DXF; almacén con cumbrera a 8,21 y sus tijerales cruzando de oeste a este (luz en x)
+  techos: [[6.15, 5.05, [0, 6.085, 11.995, 17.905, 23.82, 24.22, 30.135, 36.045, 41.955, 48.05]], [6.15, 2.06, [1.41, 7.04, 12.33, 17.64], 'x']],
+  // Cielo raso de los cuartos cerrados: laminado y laboratorio (h = 4,2 m) e impresión (h = 5,0 m)
+  cielos: [[rd(27.27, 19.31, 38.68, 27.44), 4.2], [rd(26.57, 27.59, 38.92, 34.68), 5.0]],
+  montacargas: [[du(36), dv(41.5), 0]],
   oficinas: [rr(oPF, 35, 290, 140, 730), rr(oPF, 590, 150, 760, 245), rr(oPF, 235, 150, 275, 190)],
   zonas: [
     [rr(oPF, 35, 290, 140, 380), 'GERENCIA', 0], [rr(oPF, 35, 380, 140, 495), 'MÓDULO OFICINA', 0],
     [rr(oPF, 35, 495, 140, 660), 'ZONA DE SCRAP', 0], [rr(oPF, 35, 660, 140, 730), 'MAESTRANZA', 0],
     [rr(oPF, 590, 150, 760, 245), 'SS.HH. Y VESTIDORES', 0], [rr(oPF, 235, 150, 275, 190), 'GARITA', 0],
-    [rr(oPF, 292, 175, 552, 262), 'ESTACIONAMIENTO', 0], [rr(oPF, 770, 190, 860, 245), 'RESIDUOS PELIGROSOS', 0x22DC2626],
-    [rr(oPF, 445, 400, 650, 610), 'ALMACÉN MATERIA PRIMA', 0x1416A34A], [rr(oPF, 650, 400, 860, 610), 'ALMACÉN PRODUCTO TERMINADO', 0x143B82F6],
-    [rr(oPF, 455, 730, 650, 830), 'ZONA DE LAMINADO', 0x1AEA580C], [rr(oPF, 340, 985, 445, 1145), 'PARIHUELAS', 0x103B82F6],
-    [rr(oPF, 25, 730, 340, 1180), 'ZONA DE EXTRUSIÓN', 0],
+    [rd(17.89, 54.59, 32.89, 59.59), 'ESTACIONAMIENTO', 0], [rr(oPF, 770, 190, 860, 245), 'RESIDUOS PELIGROSOS', 0x22DC2626],
+    [rd(26.57, 27.59, 50.89, 45.43), 'ALMACÉN DE PRODUCTO TERMINADO', 0x143B82F6], [rd(26.57, 27.59, 38.87, 34.63), 'ZONA DE IMPRESIÓN', 0x142F7D6D],
+    [rd(27.37, 21.76, 38.58, 27.11), 'ZONA DE LAMINADO', 0x1AEA580C], [rd(27.37, 19.41, 34.85, 21.66), 'LABORATORIO', 0],
+    [rd(23.08, 23.68, 27.27, 27.44), 'ZONA DE DESINFECCIÓN', 0x1838BDF8], [rd(20.9, 4.0, 26.45, 12.65), 'PARIHUELAS', 0x103B82F6],
+    [rd(26.9, 2.19, 42.5, 13.2), 'ZONA DE SELLADO', 0x10F97316], [rd(2.99, 2.19, 23.0, 27.44), 'ZONA DE EXTRUSIÓN', 0],
   ],
   piezas: [
-    pz(oPF, 'EXTRUSORA 3', 'Extrusión', 62, 740, 133, 66, 95, { sprite: 'extrusora3' }),
-    pz(oPF, 'EXTRUSORA 4', 'Extrusión', 62, 833, 170, 64, 120, { sprite: 'extrusora4' }),
-    pz(oPF, 'EXTRUSORA 6', 'Extrusión', 57, 990, 262, 72, 118, { sprite: 'extrusora6', puntos: [[147, 1068], [189, 982], [229, 1068], [293, 1068]] }),
-    pz(oPF, 'EXTRUSORA 7', 'Extrusión', 57, 1085, 262, 65, 108, { sprite: 'extrusora7', puntos: [[97, 1158], [141, 1158], [120, 1076], [200, 1076], [236, 1158], [300, 1158]] }),
-    pz(oPF, 'EXTRUSORA 2', 'Extrusión', 291, 737, 36, 65, 50, { sprite: 'extrusora2' }),
-    pz(oPF, 'EXTRUSORA 1', 'Extrusión', 351, 728, 45, 85, 70, { sprite: 'extrusora1' }),
-    pz(oPF, 'LAMINADORA 1', 'Laminado', 486, 752, 129, 56, 60, { sprite: 'laminadora', puntos: [[479, 790], [547, 813], [614, 779]] }),
-    pz(oPF, 'IMPRESORA 1', 'Impresión', 487, 682, 118, 36, 50, { sprite: 'impresora', puntos: [[473, 679], [527, 676], [604, 693]] }),
-    pz(oPF, 'CORTADORA 3', 'Corte', 490, 905, 55, 37, 24, { sprite: 'cortadora_cw', puntos: [[505, 948], [552, 916]] }),
-    pz(oPF, '', 'mesa', 560, 913, 38, 20, 12), pz(oPF, '', 'mesa', 618, 913, 39, 20, 12),
-    pz(oPF, 'CORTADORA 2', 'Corte', 668, 905, 67, 37, 24, { sprite: 'cortadora_ccw', puntos: [[703, 950], [662, 925]] }),
-    pz(oPF, 'CORTADORA 1', 'Corte', 737, 1045, 63, 50, 24, { sprite: 'cortadora', puntos: [[755, 1097], [750, 1028]] }),
-    pz(oPF, 'CORTADORA 4', 'Corte', 783, 640, 40, 57, 28, { sprite: 'cortadora_180', puntos: [[757, 656], [798, 632], [795, 701]] }),
-    pz(oPF, 'SELLADORA F1', 'Sellado', 455, 1018, 45, 127, 30, { sprite: 'selladora_f', puntos: [[450, 1060], [495, 1145]] }),
-    pz(oPF, 'SELLADORA F2', 'Sellado', 515, 1018, 50, 127, 30, { sprite: 'selladora_f', puntos: [[509, 1056], [527, 1013], [556, 1145]] }),
-    pz(oPF, 'SELLADORA F3', 'Sellado', 578, 1018, 47, 127, 30, { sprite: 'selladora_f', puntos: [[571, 1061], [592, 1145]] }),
-    pz(oPF, 'SELLADORA F4', 'Sellado', 638, 1030, 39, 70, 24, { sprite: 'selladora_2', puntos: [[631, 1058], [649, 1100]] }),
-    pz(oPF, 'SELLADORA L1', 'Sellado', 682, 1030, 32, 88, 24, { sprite: 'selladora_lateral', puntos: [[678, 1053], [691, 1116]] }),
-    pz(oPF, '', 'mesa', 634, 999, 26, 16, 12), pz(oPF, '', 'mesa', 680, 1012, 26, 16, 12),
-    pz(oPF, '', 'mesa', 728, 1000, 26, 16, 12), pz(oPF, '', 'mesa', 813, 778, 30, 18, 12),
-    pz(oPF, 'SELLADORA P1', 'Sellado', 805, 795, 45, 315, 22, { sprite: 'selladora_p1', puntos: [[800, 1076], [786, 967], [795, 842], [828, 804]] }),
-    ...[432, 517, 538].flatMap(y => [pz(oPF, '', 'rack', 467, y, 142, 18, 42), pz(oPF, '', 'rack', 707, y, 142, 18, 42)]),
-    ...[920, 945].flatMap(y => [0, 1, 2, 3, 4].map(i => pz(oPF, '', 'parihuela', 62 + i * 35, y, 26, 20, 10))),
-    ...[0, 1, 2].flatMap(c => [0, 1, 2, 3, 4, 5].map(r => pz(oPF, '', 'parihuela', 347 + c * 36, 990 + r * 26, 22, 18, 10))),
-    pz(oPF, '', 'escritorio', 72, 312, 18, 32, 10, { sprite: 'escritorio_cw' }), pz(oPF, '', 'escritorio', 58, 388, 16, 30, 10, { sprite: 'escritorio_cw' }),
-    pz(oPF, '', 'escritorio', 42, 450, 30, 16, 10), pz(oPF, '', 'escritorio', 92, 450, 30, 16, 10),
-    pz(oPF, '', 'escritorio', 455, 1150, 45, 14, 10), pz(oPF, '', 'escritorio', 515, 1150, 45, 14, 10),
-    pz(oPF, '', 'escritorio', 580, 1150, 42, 14, 10), pz(oPF, '', 'escritorio', 462, 568, 16, 30, 10, { sprite: 'escritorio_cw' }),
-    ...[0, 1, 2, 3, 4, 5].map(i => pz(oPF, '', 'auto', 302 + i * 43, 185, 22, 44, 13, { sprite: ['sedan', 'hatchback', 'suv', 'minivan', 'sedan', 'pickup'][i] })),
+    // Líneas de extrusión: torre + impresora + troqueladora + embobinadores, como un solo modelo
+    pd('EXTRUSORA 3', 'Extrusión', [3.68, 23.16, 12.21, 27.06], 6.4, { sprite: 'extrusora3' }),
+    pd('EXTRUSORA 4', 'Extrusión', [3.83, 18.16, 14.94, 21.6], 8.2, { sprite: 'extrusora4' }),
+    pd('EXTRUSORA 6', 'Extrusión', [3.49, 8.86, 19.91, 12.66], 7, { sprite: 'extrusora6' }),
+    pd('EXTRUSORA 7', 'Extrusión', [3.75, 3.17, 19.88, 7.13], 7, { sprite: 'extrusora7' }),
+    pd('EXTRUSORA 2', 'Extrusión', [18.15, 23.64, 20.01, 27.23], 5, { sprite: 'extrusora2' }),
+    pd('EXTRUSORA 1', 'Extrusión', [20.85, 23.66, 22.71, 27.28], 5, { sprite: 'extrusora1' }),
+    pd('LAMINADORA 1', 'Laminado', [31.28, 23.32, 36.41, 26.46], 2.9, { sprite: 'laminadora' }),
+    pd('IMPRESORA 1', 'Impresión', [28.99, 28.09, 35.79, 30.7], 4.2, { sprite: 'impresora' }),
+    pd('CORTADORA 3', 'Corte', [29.4, 15.31, 32.65, 17.51], 1.5, { sprite: 'cortadora_cw' }),
+    pd('CORTADORA 2', 'Corte', [39.61, 15.33, 42.86, 17.53], 1.5, { sprite: 'cortadora_ccw' }),
+    pd('CORTADORA 1', 'Corte', [44.19, 6.22, 46.39, 9.47], 1.5, { sprite: 'cortadora' }),
+    pd('CORTADORA 4', 'Corte', [46.19, 29.57, 48.39, 32.82], 1.5, { sprite: 'cortadora_180' }),
+    pd('SELLADORA F1', 'Sellado', [27.2, 3.64, 29.66, 10.97], 2.5, { sprite: 'selladora_f' }),
+    pd('SELLADORA F2', 'Sellado', [30.83, 3.64, 33.29, 10.97], 2.5, { sprite: 'selladora_f' }),
+    pd('SELLADORA F3', 'Sellado', [34.3, 3.64, 36.75, 10.97], 2.5, { sprite: 'selladora_f' }),
+    pd('SELLADORA F4', 'Sellado', [37.74, 5.11, 39.43, 10.14], 2.3, { sprite: 'selladora_2' }),
+    pd('SELLADORA L1', 'Sellado', [40.24, 5.11, 41.92, 10.14], 2.1, { sprite: 'selladora_lateral' }),
+    pd('SELLADORA P1', 'Sellado', [47.19, 5.71, 49.89, 23.71], 2.3, { sprite: 'selladora_p1' }),
+    // Equipos auxiliares del DXF (cajas con su medida)
+    pd('', 'equipo', [29.27, 24.9, 30.73, 26.08], 1.8, { color: 0x8f979e }), pd('', 'equipo', [32.09, 26.69, 32.8, 27.21], 1.6, { color: 0x5b636b }),
+    pd('', 'equipo', [41.76, 27.59, 44.86, 29.94], 2.0, { color: 0x2856a8 }), pd('', 'equipo', [46.72, 27.59, 47.72, 28.09], 1.6, { color: 0x5b636b }),
+    pd('', 'equipo', [49.11, 28.03, 50.11, 28.53], 1.5, { color: 0x3b7be8 }),
+    ...[[3.99, 2.04, 4.9, 2.48], [2.99, 9.96, 3.28, 10.87], [2.99, 18.75, 3.28, 19.67], [2.99, 23.91, 3.43, 24.82], [19.82, 27.0, 20.57, 27.44], [22.23, 27.0, 22.98, 27.44]]
+      .map(r => pd('', 'equipo', r, 1.9, { color: 0xd9d6cf })), // tableros eléctricos de las extrusoras
+    // Mesas de envasado y la mesa del laboratorio
+    ...[[40.03, 10.83, 42.28, 11.98], [43.06, 10.85, 45.31, 12.0], [27.38, 11.47, 29.63, 12.62], [31.11, 11.47, 33.36, 12.62], [34.63, 11.47, 36.88, 12.62],
+      [33.35, 15.84, 35.6, 16.99], [36.66, 15.85, 38.91, 17.0], [45.76, 26.74, 47.67, 27.31], [47.77, 26.74, 49.67, 27.31], [27.37, 20.8, 33.04, 21.66]].map(r => pd('', 'mesa', r, 0.9)),
+    // Racks selectivos del almacén: 3 filas de 3 cuerpos de 2,60 m, con parihuelas de 1,20 × 1,00
+    ...[[41.8, 37.74, 49.8, 38.79], [41.8, 38.89, 49.8, 39.94], [41.8, 43.64, 49.8, 44.69]].map(r => pd('', 'rack', r, 4.3)),
+    ...[37.76, 38.91, 43.66].flatMap(y => [41.85, 43.17, 44.55, 45.87, 47.25, 48.57].map(x => pd('', 'parihuela', [x, y, x + 1.2, y + 1], 0.9))),
+    ...[20.98, 23.07, 25.16].flatMap(x => [4.08, 5.58, 7.08, 8.58, 10.08, 11.58].map(y => pd('', 'parihuela', [x, y, x + 1.2, y + 1], 0.9))),
+    pd('', 'escritorio', [3.34, 41.54, 4.85, 42.79], 0.75, { sprite: 'escritorio_cw' }), pd('', 'escritorio', [5.65, 41.54, 7.16, 42.79], 0.75, { sprite: 'escritorio_ccw' }),
+    pd('', 'escritorio', [3.61, 50.76, 5.24, 52.74], 0.75, { sprite: 'escritorio_180' }),
+    ...[18.23, 20.7, 23.2, 25.7, 28.2, 30.7].map((x, i) => pd('', 'auto', [x, 54.87, x + 1.86, 59.39], 1.5, { sprite: ['sedan', 'hatchback', 'suv', 'minivan', 'sedan', 'pickup'][i] })),
+    // Muros, columnas y vanos del DXF; oficinas, SS.HH. y garita como estaban
+    ...MUROS_PF.map(([x0, y0, x1, y1, h]) => pd('', 'muro', [x0, y0, x1, y1], 0, { alto: h })),
+    ...COLUMNAS_PF.map(r => pd('', 'columna', r, 3.55)),
     ...muros(oPF, [
       [35, 290, 140, 290], [35, 290, 35, 730], [35, 380, 95, 380], [125, 380, 140, 380], [35, 495, 140, 495], [35, 660, 140, 660],
-      [140, 290, 140, 448], [140, 478, 140, 612], [140, 642, 140, 698], [140, 725, 140, 730],
-      [25, 730, 198, 730], [237, 730, 652, 730], [728, 730, 865, 730],
-      [445, 400, 445, 730], [445, 400, 612, 400], [693, 400, 860, 400], [860, 400, 860, 730],
+      [140, 290, 140, 448], [140, 478, 140, 612], [140, 642, 140, 698], [140, 725, 140, 727],
       [590, 150, 590, 245], [760, 150, 760, 245], [590, 245, 618, 245], [652, 245, 760, 245],
       [235, 150, 235, 190], [275, 150, 275, 190], [235, 190, 248, 190], [267, 190, 275, 190],
     ]),
   ],
-  murosFondo: [[0, 0, 115, 0], [175, 0, 785, 0], [0, 0, 0, 1040]],
+  murosFondo: [],
   jardines: [
     [[-30, -16], [115, -16], [115, 0], [-30, 0]],
     [[175, -16], [876, -16], [876, 1060], [860, 1060], [860, 75], [785, 0], [175, 0]],
@@ -221,7 +242,7 @@ const PF = {
     losa: rr(oPF, 587, 147, 763, 248), descanso: rr(oPF, 574, 147, 587, 162), escalera: rr(oPF, 574, 162, 587, 238),
     mesas: [168, 204].flatMap(y => [603, 658, 713].map(x => rr(oPF, x, y, x + 34, y + 12))),
   },
-  inicio: [145, 30], rumbo: Math.PI, // por el portón, mirando al sur
+  inicio: [du(11.98), dv(59.4)], rumbo: Math.PI, // por el portón, mirando al sur
 };
 
 const oP1 = [205, 217];
@@ -287,6 +308,7 @@ const ESTADOS = {
 };
 const COLOR_TIPO = { 'Extrusión': 0x46698f, 'Sellado': 0xc4682f, 'Corte': 0x6d55a3, 'Impresión': 0x2f7d6d, 'Laminado': 0xb08a2e, 'Troquelado': 0x7a5c48 };
 const HOLGURA = 1.0; // m alrededor de la huella del plano 2D en que puede crecer una máquina
+const TOLERANCIA = 0.6; // m que un modelo puede pasarse de su huella medida en el DXF
 const CAPA = 0.22, OJOS = 1.7, ALTO_MURO = 3.15, ALTO_PISO2 = 3.35; // muro de bloque P-14 hasta +3,15 (plano E-02)
 const hex = c => '#' + c.toString(16).padStart(6, '0');
 
@@ -494,8 +516,13 @@ async function colocar(padre, sprite, cx, cz, W, D, { giro = 0, ajustar = true }
   o.userData.compartido = true;
   const r = giro + extra, giradoX = Math.abs(Math.sin(r)) > 0.5;
   const sx = m.caja.max.x - m.caja.min.x, sz = m.caja.max.z - m.caja.min.z;
-  const k = ajustar ? Math.min(1, W / (giradoX ? sz : sx), D / (giradoX ? sx : sz)) : 1;
-  o.scale.setScalar(k); o.rotation.y = r; o.position.set(cx, 0, cz);
+  let k = ajustar ? Math.min(1, W / (giradoX ? sz : sx), D / (giradoX ? sx : sz)) : 1;
+  if (ajustar === 'ejes') {
+    // Medida del DXF: largo y fondo se ajustan por separado; la altura sigue al largo de la máquina
+    const kx = Math.min(1, (giradoX ? D : W) / sx), kz = Math.min(1, (giradoX ? W : D) / sz);
+    k = sx >= sz ? kx : kz; o.scale.set(kx, k, kz);
+  } else o.scale.setScalar(k);
+  o.rotation.y = r; o.position.set(cx, 0, cz);
   padre.add(o);
   rehacerSombras();
   return { o, alto: m.caja.max.y * k, k };
@@ -567,10 +594,10 @@ function arco(luz, alero, flecha) {
 }
 
 /** Datos de una nave en metros: la luz va por el lado corto (el arco cruza de un muro largo al otro). */
-function datosNave(r, [alero, flecha]) {
-  const X = r.x * S, Z = r.y * S, W = r.w * S, D = r.d * S, luzEnZ = W >= D;
+function datosNave(r, [alero, flecha, ejes, sentido]) {
+  const X = r.x * S, Z = r.y * S, W = r.w * S, D = r.d * S, luzEnZ = sentido ? sentido === 'z' : W >= D;
   const luz = luzEnZ ? D : W, largo = luzEnZ ? W : D, h = arco(luz, alero, flecha);
-  return { X, Z, W, D, luzEnZ, luz, largo, alero, flecha, h,
+  return { X, Z, W, D, luzEnZ, luz, largo, alero, flecha, h, ejes,
     alto: (x, z) => h(luzEnZ ? z - (Z + D / 2) : x - (X + W / 2)) };
 }
 
@@ -609,7 +636,7 @@ function armarNave(muros, techos, r, perfil, tramosMuro, otras) {
   const cubierta = new THREE.Mesh(geoArco(n, x0, -x0), new THREE.MeshStandardMaterial({ map: tc, roughness: 0.55, metalness: 0.35, side: THREE.DoubleSide, emissive: 0x6b6f72, emissiveMap: tc, emissiveIntensity: 0.55 }));
   cubierta.receiveShadow = true; g.add(cubierta); // no proyecta sombra: el sol entra como por las traslúcidas
   const trasl = new THREE.MeshStandardMaterial({ map: texTraslucida, roughness: 0.3, transparent: true, opacity: 0.85, emissive: 0xffffff, emissiveIntensity: 0.35, side: THREE.DoubleSide, depthWrite: false });
-  const ejes = Math.abs(n.largo - 48.05) < 1.5 ? EJES_E01.map(e => e * n.largo / 48.05) : Array.from({ length: Math.round(n.largo / 6) + 1 }, (_, i) => i * n.largo / Math.round(n.largo / 6));
+  const ejes = n.ejes ?? (Math.abs(n.largo - 48.05) < 1.5 ? EJES_E01.map(e => e * n.largo / 48.05) : Array.from({ length: Math.round(n.largo / 6) + 1 }, (_, i) => i * n.largo / Math.round(n.largo / 6)));
   for (let i = 0; i < ejes.length - 1; i++) {
     const c = (ejes[i] + ejes[i + 1]) / 2;
     g.add(new THREE.Mesh(geoArco(n, x0 + c - 0.512, x0 + c + 0.512, 0.03, -n.luz * 0.18), trasl));
@@ -753,8 +780,29 @@ function conModelo(padre, sprite, cx, cz, W, D, provisorio, op) {
 // (motriz) en x = 0,55 y trasero (direccional) en -0,70. El .glb viene centrado:
 // [dx] lo corre. En el .blend las horquillas quedaron a 0,34 m del piso; acá
 // [H] es la altura de la cara de abajo de las horquillas sobre el piso.
-const MC = { PUNTA: 2.21, EJE: 0.55, BASE: 1.25, H0: 0.3175, HMIN: 0.02, HMAX: 3.0, VEL_H: 0.45, VMAX: 3.2, VREV: 1.8, GIRO: 1.05, OJOS: 1.92, ASIENTO: -0.3 };
-let mc = null, conduciendo = false, parihuelas = [];
+const MC = { PUNTA: 2.21, EJE: 0.55, BASE: 1.25, H0: 0.3175, HMIN: 0.02, HMAX: 3.6, VEL_H: 0.45, VMAX: 3.2, VREV: 1.8, GIRO: 1.05, OJOS: 1.92, ASIENTO: -0.3 };
+let mc = null, conduciendo = false, parihuelas = [], racks = [], soloJugador = [];
+/** Rack selectivo a medida del DXF: parantes azules en cada cuerpo, vigas plomas en cada nivel. Solo los parantes
+ *  chocan con el montacargas (las horquillas entran entre ellos); el jugador no entra al rack. */
+function rackReal(padre, p, rnd) {
+  const X = p.x * S, Z = p.y * S, W = p.w * S, D = p.d * S, H = p.h * S, enX = W >= D, L = enX ? W : D, F = enX ? D : W;
+  const cuerpos = Math.max(1, Math.round(L / 2.65)), niveles = [0, 1.55, 3.1];
+  const parante = mat(0x2856a8, { metalness: 0.4, roughness: 0.5 }), viga = mat(0x9aa1a8, { metalness: 0.5, roughness: 0.45 });
+  const pos = (a, b) => enX ? [X + a, Z + b] : [X + b, Z + a]; // a: a lo largo, b: de fondo
+  for (let i = 0; i <= cuerpos; i++) for (const b of [0.05, F - 0.05]) { // en el eje entre cuerpos del DXF
+    const [x, z] = pos(i * L / cuerpos, b);
+    caja(padre, x, 0, z, 0.08, H, 0.08, parante);
+    bloqueos.push([x - 0.04, z - 0.04, x + 0.04, z + 0.04]);
+  }
+  for (const y of [...niveles.slice(1), H - 0.1]) for (const b of [0.05, F - 0.05]) {
+    const [x, z] = pos(L / 2, b); caja(padre, x, y - 0.1, z, enX ? L : 0.06, 0.1, enX ? 0.06 : L, viga, false);
+  }
+  for (let i = 0; i <= cuerpos; i++) for (const y of [0.3, H - 0.4]) { // amarres de fondo
+    const [x, z] = pos(i * L / cuerpos, F / 2); caja(padre, x, y, z, enX ? 0.05 : F, 0.05, enX ? F : 0.05, parante, false);
+  }
+  racks.push({ x0: X, z0: Z, x1: X + W, z1: Z + D, niveles });
+  soloJugador.push([X, Z, X + W, Z + D]);
+}
 /** Separa la malla del montacargas en chasis fijo, mástil interior (sube la mitad) y carro con horquillas. */
 function partirMontacargas(m, dx) {
   const partes = { fijo: new THREE.Group(), interior: new THREE.Group(), carro: new THREE.Group() };
@@ -812,11 +860,11 @@ function ponerHorquillas() {
   mc.partes.carro.position.y = d; mc.partes.interior.position.y = Math.max(0, mc.H - MC.HMIN) / 2;
 }
 
-function nuevaParihuela(padre, cx, cz, W, D, alto, color) {
+function nuevaParihuela(padre, cx, cz, W, D, alto, color, y0 = 0) {
   const g = new THREE.Group(), prov = new THREE.Group();
-  g.position.set(cx, 0, cz); padre.add(g); g.add(prov);
+  g.position.set(cx, y0, cz); padre.add(g); g.add(prov);
   caja(prov, 0, 0, 0, W, 0.14, D, mat(0xb98a52)); caja(prov, 0, 0.14, 0, W * 0.92, alto, D * 0.92, mat(color));
-  const pa = { g, x: cx, z: cz, rot: 0, y: 0, mx: W / 2, mz: D / 2, alto: 0.14 + alto };
+  const pa = { g, x: cx, z: cz, rot: 0, y: y0, mx: W / 2, mz: D / 2, alto: 0.14 + alto };
   colocar(g, 'parihuela', 0, 0, W, D).then(m => {
     if (!m) return;
     g.remove(prov); liberar(prov);
@@ -872,6 +920,8 @@ function tomar(pa) {
 function apoyoBajo(c) {
   let h = 0;
   for (const o of parihuelas) if (!cargada(o) && Math.hypot(o.x - c.pa.x, o.z - c.pa.z) < Math.max(o.mx, o.mz)) h = Math.max(h, o.y + o.alto);
+  for (const r of racks) if (c.pa.x > r.x0 && c.pa.x < r.x1 && c.pa.z > r.z0 && c.pa.z < r.z1)
+    for (const n of r.niveles) if (n <= c.pa.y + 0.03) h = Math.max(h, n); // vigas del rack
   return h;
 }
 function moverCarga() {
@@ -971,7 +1021,7 @@ function liberar(o) {
 function armar(pl) {
   if (mundo) { scene.remove(mundo); liberar(mundo); }
   plano = pl; mundo = new THREE.Group(); scene.add(mundo); bloqueos = []; maquinas = [];
-  mc = null; conduciendo = false; parihuelas = [];
+  mc = null; conduciendo = false; parihuelas = []; racks = []; soloJugador = [];
   techos = new THREE.Group(); mundo.add(techos);
   const rnd = azar(pl === PF ? 11 : 23);
   const bloquear = (x, z, w, d) => bloqueos.push([x, z, x + w, z + d]);
@@ -1019,26 +1069,35 @@ function armar(pl) {
   const pendientes = [], cargasMaquinas = [];
   const naves = pl.naves.map((r, i) => datosNave(r, pl.techos[i]));
   pl.naves.forEach((r, i) => armarNave(cerramiento, techos, r, pl.techos[i], tramosMuro, naves));
+  // Cielo raso de los cuartos cerrados de la nave
+  for (const [r, h] of pl.cielos || []) caja(techos, (r.x + r.w / 2) * S, h, (r.y + r.d / 2) * S, r.w * S, 0.1, r.d * S, mat(0xe4e2dc, { roughness: 0.9 }), false);
   // Techo plano de las oficinas (las del comedor ya tienen losa)
   for (const o of pl.oficinas) {
     if (pl.comedor && dentro(pl.comedor.losa, (o.x + o.w / 2) * S, (o.y + o.d / 2) * S)) continue;
     caja(techos, (o.x + o.w / 2) * S, ALTO_MURO, (o.y + o.d / 2) * S, o.w * S + 0.3, 0.15, o.d * S + 0.3, mat(0xcfcac0), false);
   }
 
-  // Piezas
+  // Piezas (los racks primero: hay parihuelas que van en sus niveles)
+  pl.piezas.sort((a, b) => (b.t === 'rack') - (a.t === 'rack'));
   for (const p of pl.piezas) {
     const X = p.x * S, Z = p.y * S, W = p.w * S, D = p.d * S, H = p.h * S, cx = X + W / 2, cz = Z + D / 2;
-    if (p.t !== 'auto' && p.t !== 'parihuela') bloquear(X, Z, W, D);
-    if (p.t === 'muro') { caja(mundo, cx, 0, cz, Math.max(W, 0.18), ALTO_MURO, Math.max(D, 0.18), blanco); continue; }
+    if (!['auto', 'parihuela', 'rack'].includes(p.t)) bloquear(X, Z, W, D);
+    if (p.t === 'muro') { caja(mundo, cx, 0, cz, Math.max(W, 0.18), p.alto || ALTO_MURO, Math.max(D, 0.18), blanco); continue; }
+    if (p.t === 'columna') { caja(mundo, cx, 0, cz, W, H, D, mat(0xb9b5ab, { roughness: 0.9 })); continue; }
+    if (p.t === 'equipo') { caja(mundo, cx, 0, cz, W, H, D, mat(p.color ?? 0x8f979e, { roughness: 0.5, metalness: 0.3 })); continue; }
+    if (p.t === 'rack' && p.exacta) { rackReal(mundo, p, rnd); continue; }
     if (p.t === 'rack') { pendientes.push(conModelo(muebles, 'rack', cx, cz, W, D, g => rack(g, p))); continue; }
     if (p.t === 'parihuela') {
-      const alto = (H - 0.14) * (0.5 + rnd() * 0.9), color = [0xe8e2d0, 0xf2f2ee, 0xd9c9a3][Math.floor(rnd() * 3)];
-      parihuelas.push(nuevaParihuela(movibles, cx, cz, W, D, alto, color));
+      const alto = p.exacta ? 0.35 + rnd() * 0.5 : (H - 0.14) * (0.5 + rnd() * 0.9), color = [0xe8e2d0, 0xf2f2ee, 0xd9c9a3][Math.floor(rnd() * 3)];
+      // En un rack: algunas van al segundo o tercer nivel
+      const rk = racks.find(r => cx > r.x0 && cx < r.x1 && cz > r.z0 && cz < r.z1), y0 = rk ? rk.niveles[Math.floor(rnd() * rk.niveles.length)] : 0;
+      parihuelas.push(nuevaParihuela(movibles, cx, cz, W, D, alto, color, y0));
       continue;
     }
     if (p.t === 'mesa') {
-      caja(mundo, cx, 0.7, cz, W, 0.06, D, mat(0xaab2b9, { metalness: 0.5, roughness: 0.4 }));
-      caja(mundo, cx, 0, cz, W * 0.85, 0.7, D * 0.7, mat(0x5b636b, { metalness: 0.4 }));
+      const hm = p.exacta ? H - 0.06 : 0.7;
+      caja(mundo, cx, hm, cz, W, 0.06, D, mat(0xaab2b9, { metalness: 0.5, roughness: 0.4 }));
+      caja(mundo, cx, 0, cz, W * 0.85, hm, D * 0.7, mat(0x5b636b, { metalness: 0.4 }));
       continue;
     }
     if (p.t === 'escritorio') {
@@ -1076,7 +1135,8 @@ function armar(pl) {
     if (p.sprite) {
       // Tamaño real del modelo de Blender (m). El rect del plano 2D es más chico que varias máquinas:
       // solo se achica lo que no quepa en su huella más HOLGURA (lo que había de pasillo alrededor).
-      cargasMaquinas.push(conModelo(g, p.sprite, 0, 0, W / 0.9 + HOLGURA, D / 0.9 + HOLGURA, provisorio).then(m => {
+      const [Wm, Dm] = p.exacta ? [W + TOLERANCIA, D + TOLERANCIA] : [W / 0.9 + HOLGURA, D / 0.9 + HOLGURA];
+      cargasMaquinas.push(conModelo(g, p.sprite, 0, 0, Wm, Dm, provisorio, { ajustar: p.exacta ? 'ejes' : true }).then(m => {
         if (!m) return;
         // Que no atraviese el muro de su nave: se corre hacia adentro
         let b = new THREE.Box3().setFromObject(m.o);
@@ -1165,6 +1225,7 @@ function libre(x, z) {
   if (x < limites[0] || z < limites[1] || x > limites[2] || z > limites[3]) return false;
   if (bloqueos.some(([x0, z0, x1, z1]) => x > x0 - CAPA && x < x1 + CAPA && z > z0 - CAPA && z < z1 + CAPA)) return false;
   if (parihuelas.some(pa => pa.y < OJOS && enParihuela(pa, x, z, CAPA))) return false;
+  if (soloJugador.some(([x0, z0, x1, z1]) => x > x0 - CAPA && x < x1 + CAPA && z > z0 - CAPA && z < z1 + CAPA)) return false;
   if (mc && !conduciendo) {
     const [lx, lz] = aLocal(x, z), bx = lx - mc.dx, by = Math.abs(lz);
     if (bx > -1.19 - CAPA && bx < 1.0 + CAPA && by < 0.6 + CAPA) return false;
