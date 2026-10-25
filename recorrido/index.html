@@ -479,11 +479,29 @@ const PINTURA_MAQUINA = {
   blanco: 0xe9ebec, gris: 0x7c8288, negro: 0x1d1f22, naranja: 0x8b9197, amarillo: 0x26282b, rojo: 0x26282b, verde: 0x6b7177,
   motor: 0x3b3e43, tablero: 0xd5d8db, goma_verde: 0x202224, goma_azul: 0x202224, cobre: 0x8b9197,
 };
+/** Material estándar a partir del físico del .glb (el físico con transmisión dibuja la escena dos veces). */
+const estandar = (f, extra = {}) => new THREE.MeshStandardMaterial({ name: f.name, color: f.color, roughness: f.roughness, metalness: f.metalness, emissive: f.emissive, emissiveIntensity: f.emissiveIntensity, side: THREE.DoubleSide, ...extra });
+const GIRA = /Rodillo|Cilindro_Portaclise|Anilox|Calibrador|Tambor/i, BALIZA = /^Baliza(_Equipo)?_(Verde|Roja|Ambar)/;
 function compactar(raiz, maquina = false) {
   raiz.updateMatrixWorld(true);
-  const porMat = new Map(), m = new THREE.Matrix4();
+  const porMat = new Map(), m = new THREE.Matrix4(), animables = [];
   raiz.traverse(o => {
     if (!o.isMesh) return;
+    // Rodillos instanciados (giran) y balizas de la torre (muestran el estado): quedan aparte, sin fusionar
+    if (maquina && o.isInstancedMesh && GIRA.test(o.name)) {
+      const im = new THREE.InstancedMesh(o.geometry, estandar(o.material), o.count);
+      for (let i = 0; i < o.count; i++) { o.getMatrixAt(i, m); m.premultiply(o.matrixWorld); im.setMatrixAt(i, m); }
+      o.geometry.computeBoundingBox(); const b = o.geometry.boundingBox, t = b.getSize(new THREE.Vector3());
+      im.userData = { gira: t.x >= t.y && t.x >= t.z ? 'x' : t.y >= t.z ? 'y' : 'z', centro: b.getCenter(new THREE.Vector3()).toArray(), noFusionar: true };
+      im.castShadow = true; im.receiveShadow = true; animables.push(im); return;
+    }
+    if (maquina && BALIZA.test(o.name) && !o.isInstancedMesh) {
+      const color = /Verde/.test(o.name) ? 0x1fd65c : /Roja/.test(o.name) ? 0xff2a1f : 0xffa51a;
+      const me = new THREE.Mesh(o.geometry, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.15, roughness: 0.3 }));
+      me.matrix.copy(o.matrixWorld); me.matrix.decompose(me.position, me.quaternion, me.scale);
+      me.userData = { baliza: /Verde/.test(o.name) ? 'verde' : /Roja/.test(o.name) ? 'roja' : 'ambar', noFusionar: true };
+      animables.push(me); return;
+    }
     const geo = o.geometry, mats = Array.isArray(o.material) ? o.material : [o.material];
     const partes = Array.isArray(o.material) && geo.groups.length ? geo.groups.map(g => [g.start, g.count, mats[g.materialIndex]])
       : [[0, geo.index ? geo.index.count : geo.attributes.position.count, mats[0]]];
@@ -517,6 +535,7 @@ function compactar(raiz, maquina = false) {
     const me = new THREE.Mesh(geo, mt); me.castShadow = !mt.transparent; me.receiveShadow = true; me.name = mt.name || '';
     obj.add(me);
   }
+  for (const a of animables) obj.add(a);
   return { obj, caja: new THREE.Box3().setFromObject(obj) };
 }
 /** Junta en una malla por material todo lo estático sin textura bajo [grupo] (cerchas, columnas, muros...). */
@@ -527,7 +546,7 @@ function fusionar(grupo, soloHijos = false, excluir = []) {
   const inv = new THREE.Matrix4().copy(grupo.matrixWorld).invert(), m = new THREE.Matrix4(), c = new THREE.Vector3();
   const porMat = new Map(), quitar = [];
   const ver = o => {
-    if (!o.isMesh || o.isInstancedMesh || !o.visible || o.material.map || o.material.transparent) return;
+    if (!o.isMesh || o.isInstancedMesh || !o.visible || o.material.map || o.material.transparent || o.userData.noFusionar) return;
     const geo = o.geometry, n = geo.index ? geo.index.count : geo.attributes.position.count;
     if (!geo.boundingSphere) geo.computeBoundingSphere();
     c.copy(geo.boundingSphere.center).applyMatrix4(o.matrixWorld);
@@ -1066,7 +1085,7 @@ function iniciarAudio() {
       if (filtro) { const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = filtro; o.connect(lp); lp.connect(g); } else o.connect(g);
       g.connect(salida); o.start(); return { o, g };
     };
-    audio = { ctx, motor: voz('sawtooth', 40, 260), pito: voz('square', 1150, 0), hidraulica: voz('triangle', 190, 900) };
+    audio = { ctx, motor: voz('sawtooth', 40, 260), pito: voz('square', 1150, 0), hidraulica: voz('triangle', 190, 900), planta: voz('sawtooth', 98, 320), planta2: voz('triangle', 147, 600) };
   } catch { audio = null; }
 }
 function sonar(ahora) {
@@ -1077,6 +1096,11 @@ function sonar(ahora) {
   audio.motor.o.frequency.setTargetAtTime(38 + v * 30 + (mc?.subiendo ? 14 : 0), t, 0.2);
   audio.pito.g.gain.setTargetAtTime(activo && mc.v < -0.05 && ahora % 900 < 450 ? 0.035 : 0, t, 0.01);
   audio.hidraulica.g.gain.setTargetAtTime(activo && mc.subiendo ? 0.035 : 0, t, 0.05);
+  // Zumbido de la planta: sube cerca de las máquinas que están produciendo
+  let d = Infinity;
+  for (const g of maquinas) if (['produciendo', 'pausa'].includes(g.userData.estado)) d = Math.min(d, Math.hypot(g.position.x - jugador.x, g.position.z - jugador.z));
+  const v2 = intro.hidden ? 0.05 * Math.max(0, 1 - d / 28) : 0;
+  audio.planta.g.gain.setTargetAtTime(v2, t, 0.3); audio.planta2.g.gain.setTargetAtTime(v2 * 0.5, t, 0.3);
 }
 
 // --- Mobiliario del plano: un modelo liviano por capa, a medida humana ----------------------
@@ -1297,7 +1321,7 @@ function ponerNoche(v) {
 }
 
 // --- Armar la escena de un plano ---------------------------------------------
-let mundo = null, techos = null, plano = null, bloqueos = [], maquinas = [], limites = null;
+let mundo = null, techos = null, plano = null, bloqueos = [], maquinas = [], limites = null, animadas = [], balizasPausa = [];
 // Los modelos clonados comparten geometría y materiales con su original: no se liberan.
 const compartidos = new WeakSet();
 function liberar(o) {
@@ -1309,7 +1333,7 @@ function liberar(o) {
 
 function armar(pl) {
   if (mundo) { scene.remove(mundo); liberar(mundo); }
-  plano = pl; mundo = new THREE.Group(); scene.add(mundo); bloqueos = []; maquinas = []; grilla = null;
+  plano = pl; mundo = new THREE.Group(); scene.add(mundo); bloqueos = []; maquinas = []; grilla = null; animadas = []; balizasPausa = [];
   mc = null; conduciendo = false; parihuelas = []; racks = []; soloJugador = [];
   techos = new THREE.Group(); mundo.add(techos);
   const rnd = azar(pl === PF ? 11 : 23);
@@ -1439,7 +1463,16 @@ function armar(pl) {
         }
         bloqueos.push([b.min.x + 0.15, b.min.z + 0.15, b.max.x - 0.15, b.max.z - 0.15]);
         et.position.y = m.alto + 0.9;
-        m.o.traverse(o => { if (o.isMesh && /^film/.test(o.name)) o.visible = andando; }); // burbuja y láminas solo andando
+        m.o.traverse(o => {
+          if (o.isMesh && /^film/.test(o.name)) o.visible = andando; // burbuja y láminas solo andando
+          if (o.userData.gira && andando) animadas.push({ me: o, g, base: o.instanceMatrix.array.slice(), eje: new THREE.Vector3(...{ x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }[o.userData.gira]), c: new THREE.Vector3(...o.userData.centro), vel: 4 + rnd() * 3 });
+          if (o.userData.baliza) { // la luz de la torre según el estado
+            o.material = o.material.clone();
+            const prende = { produciendo: 'verde', pausa: 'ambar', asignada: 'ambar', apagada: 'roja' }[estado] === o.userData.baliza;
+            o.material.emissiveIntensity = prende ? 2.2 : 0.08;
+            if (prende && estado === 'pausa') balizasPausa.push(o.material);
+          }
+        });
         g.userData.caja = null; // se recalcula con el modelo
       }));
     } else { const q = new THREE.Group(); g.add(q); provisorio(q); }
@@ -1772,6 +1805,21 @@ function pintarMapa() {
   mg.beginPath(); mg.moveTo(0, -8 * dpr); mg.lineTo(5 * dpr, 6 * dpr); mg.lineTo(0, 3 * dpr); mg.lineTo(-5 * dpr, 6 * dpr); mg.closePath(); mg.fill(); mg.stroke();
 }
 
+// --- Máquinas en marcha: rodillos que giran, film que brilla, balizas en pausa que parpadean ---------
+const _k = new THREE.Matrix4(), _r = new THREE.Matrix4(), _q = new THREE.Matrix4();
+function animarMaquinas(t) {
+  const p = camera.position;
+  for (const a of animadas) {
+    if (Math.hypot(a.g.position.x - p.x, a.g.position.z - p.z) > 45) continue; // lejos: no se nota
+    _k.makeTranslation(a.c.x, a.c.y, a.c.z).multiply(_r.makeRotationAxis(a.eje, t * a.vel)).multiply(_q.makeTranslation(-a.c.x, -a.c.y, -a.c.z));
+    const arr = a.me.instanceMatrix.array;
+    for (let i = 0; i < a.me.count; i++) _q.fromArray(a.base, i * 16).multiply(_k).toArray(arr, i * 16);
+    a.me.instanceMatrix.needsUpdate = true;
+  }
+  for (const mt of materialesModelo.values()) if (mt.transparent && /^film/.test(mt.name)) mt.opacity = (mt.userData.op ??= mt.opacity) * (0.92 + 0.08 * Math.sin(t * 3.1));
+  for (const mt of balizasPausa) mt.emissiveIntensity = Math.sin(t * 6) > 0 ? 2.2 : 0.08;
+}
+
 // --- Bucle --------------------------------------------------------------------
 const ficha = document.getElementById('ficha'), zonaEl = document.getElementById('zona');
 const ray = new THREE.Raycaster(); ray.far = 30;
@@ -1835,7 +1883,7 @@ function bucle(ahora) {
     if (conduciendo) [jugador.x, jugador.z] = asientoMundo(); // la zona, el minimapa y los letreros siguen al montacargas
     mc.baliza.material.emissiveIntensity = conduciendo && Math.floor(ahora / 350) % 2 ? 2.4 : 0.2;
   }
-  sonar(ahora); moverLucesReales();
+  sonar(ahora); moverLucesReales(); animarMaquinas(ahora / 1000);
   if (l > 0 && intro.hidden && !aerea) {
     const n = Math.min(1, l) / l, vel = (teclas.has('ShiftLeft') || teclas.has('ShiftRight') || Math.hypot(...joyVec) > 0.95 ? 6.5 : 2.8) * dt;
     const sx = Math.sin(yaw), cz = Math.cos(yaw);
