@@ -1,0 +1,1414 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<meta charset="utf-8">
+<title>Recorrido de Planta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: canvas a pantalla completa; HUD en las esquinas como señalética de planta (amarillo de piso pintado sobre gris acero). */
+:root {
+  --bg: #15181c;
+  --panel: rgba(21, 24, 28, 0.82);
+  --line: rgba(255, 255, 255, 0.12);
+  --fg: #eceae4;
+  --muted: #a3a8ad;
+  --accent: #e3b53b; /* amarillo de demarcación de piso */
+  --ok: #22a35a; --azul: #3b7be8; --pausa: #e09a1a; --apagada: #6b7684; --libre: #a3acb7;
+  --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; overflow: hidden; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); -webkit-user-select: none; user-select: none; touch-action: none; }
+canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+.hud { position: fixed; pointer-events: none; z-index: 2; }
+#lugar { top: calc(12px + env(safe-area-inset-top, 0px)); left: calc(12px + env(safe-area-inset-left, 0px)); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; max-width: calc(100vw - 220px); }
+#lugar .sede { font: 600 12px/1 var(--display); letter-spacing: .14em; color: var(--accent); text-transform: uppercase; }
+#lugar .zona { font: 600 20px/1.15 var(--display); letter-spacing: .02em; margin-top: 4px; text-wrap: balance; }
+#mapa { top: calc(12px + env(safe-area-inset-top, 0px)); right: calc(12px + env(safe-area-inset-right, 0px)); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
+#mapa canvas { display: block; }
+#mira { left: 50%; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; }
+#mira::before, #mira::after { content: ""; position: absolute; background: rgba(255,255,255,.85); box-shadow: 0 0 2px rgba(0,0,0,.8); }
+#mira::before { left: 8px; top: 2px; width: 2px; height: 14px; }
+#mira::after { top: 8px; left: 2px; height: 2px; width: 14px; }
+#ficha { left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; min-width: 220px; max-width: calc(100vw - 32px); display: grid; gap: 4px; }
+#ficha .nombre { font: 700 22px/1 var(--display); letter-spacing: .03em; }
+#ficha .fila { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,.08); color: var(--fg); font-weight: 500; }
+.chip i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+#ayuda { left: calc(12px + env(safe-area-inset-left, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); font-size: 12px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+#ayuda kbd { font: 600 11px var(--body); color: var(--fg); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; }
+
+#accion { left: 50%; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; font-size: 13px; color: var(--muted); text-align: center; max-width: calc(100vw - 32px); }
+#accion b { color: var(--fg); font: 700 16px var(--display); letter-spacing: .03em; }
+#accion kbd { font: 600 11px var(--body); color: var(--fg); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; }
+.botones { position: fixed; z-index: 4; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 10px; justify-items: end; }
+.botones button { font: 700 16px var(--display); letter-spacing: .04em; min-width: 56px; min-height: 48px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); touch-action: none; }
+.botones button.principal { background: var(--accent); color: #1a1508; border: 0; }
+#joy { position: fixed; z-index: 3; width: 110px; height: 110px; margin: -55px 0 0 -55px; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); background: rgba(0,0,0,.18); pointer-events: none; }
+#joy b { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; background: rgba(227,181,59,.75); }
+
+#intro { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; background: rgba(12, 14, 17, .72); padding: 16px max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px)); }
+.tarjeta { width: min(460px, 100%); background: #1c2025; border: 1px solid var(--line); border-radius: 10px; padding: 22px; display: grid; gap: 16px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.tarjeta .eyebrow { font: 600 12px/1 var(--display); letter-spacing: .16em; color: var(--accent); text-transform: uppercase; }
+.tarjeta h1 { margin: 6px 0 0; font: 700 34px/1 var(--display); letter-spacing: .01em; text-wrap: balance; }
+.tarjeta p { margin: 0; color: var(--muted); line-height: 1.5; font-size: 14px; }
+.sedes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sedes button { font: 600 16px var(--display); letter-spacing: .04em; padding: 10px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--fg); cursor: pointer; }
+.sedes button[aria-pressed="true"] { border-color: var(--accent); background: rgba(227,181,59,.12); color: var(--accent); }
+#entrar { font: 700 18px var(--display); letter-spacing: .08em; text-transform: uppercase; padding: 12px; border: 0; border-radius: 6px; background: var(--accent); color: #1a1508; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+.controles { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 13px; color: var(--muted); }
+.controles kbd { font: 600 12px var(--body); color: var(--fg); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 1px 6px; white-space: nowrap; justify-self: start; }
+.cargando { font-size: 13px; color: var(--accent); min-height: 1em; margin-top: -8px; }
+.nota { font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 12px; }
+.leyenda { display: flex; flex-wrap: wrap; gap: 6px; }
+@media (max-width: 560px) { #ayuda { display: none; } #lugar { max-width: calc(100vw - 150px); } #lugar .zona { font-size: 16px; } }
+</style>
+
+<canvas id="c"></canvas>
+<div class="hud" id="lugar"><div class="sede"><span id="sede">Piura Futura</span> · <span id="fps"></span></div><div class="zona" id="zona">Patio</div></div>
+<div class="hud" id="mapa"><canvas id="mini"></canvas></div>
+<div class="hud" id="mira"></div>
+<div class="hud" id="ficha" hidden></div>
+<div class="hud" id="ayuda"><kbd>WASD</kbd> mover · <kbd>Shift</kbd> correr · <kbd>E</kbd> montacargas · <kbd>V</kbd> vista aérea · <kbd>1</kbd>/<kbd>2</kbd> planta · <kbd>Esc</kbd> pausa</div>
+<div class="hud" id="accion" hidden></div>
+<div class="botones" id="botonesMc" hidden>
+  <button type="button" id="bSube" hidden aria-label="Subir horquillas">▲</button>
+  <button type="button" id="bBaja" hidden aria-label="Bajar horquillas">▼</button>
+  <button type="button" id="bMc" class="principal">Subir al montacargas</button>
+</div>
+<div id="joy" hidden><b></b></div>
+
+<div id="intro">
+  <div class="tarjeta">
+    <div>
+      <div class="eyebrow">Planta en vivo · prototipo 3D</div>
+      <h1>Recorrido de planta</h1>
+    </div>
+    <p>Máquinas y zonas del plano de Planta en vivo, modelos de Blender a tamaño real y naves según los planos de estructuras (arco AM-1, muro P-14, cubierta de calaminón). Vista a 1,70 m. Elige la sede y entra a caminar o a manejar el montacargas.</p>
+    <div class="sedes" role="group" aria-label="Sede">
+      <button type="button" id="s0" aria-pressed="true">Piura Futura</button>
+      <button type="button" id="s1" aria-pressed="false">Planta 1</button>
+    </div>
+    <button type="button" id="entrar">Entrar</button>
+    <div id="carga" class="cargando" aria-live="polite"></div>
+    <div class="controles" id="ctlPc">
+      <kbd>W A S D</kbd><span>Caminar (también con las flechas)</span>
+      <kbd>Mouse</kbd><span>Mirar alrededor</span>
+      <kbd>Shift</kbd><span>Correr</span>
+      <kbd>E</kbd><span>Subir y bajar del montacargas (cerca de él)</span>
+      <kbd>W S · A D</kbd><span>En el montacargas: avanzar, retroceder y girar</span>
+      <kbd>R · F</kbd><span>Subir y bajar las horquillas (métele las horquillas a una parihuela y súbelas para cargarla)</span>
+      <kbd>V</kbd><span>Vista aérea y de vuelta</span>
+      <kbd>Esc</kbd><span>Pausa</span>
+    </div>
+    <div class="controles" id="ctlTouch" hidden>
+      <kbd>Izquierda</kbd><span>Arrastra para caminar</span>
+      <kbd>Derecha</kbd><span>Arrastra para mirar</span>
+      <kbd>Montacargas</kbd><span>Acércate y toca «Subir»; el joystick maneja y ▲ ▼ mueven las horquillas</span>
+    </div>
+    <div class="nota">
+      <div class="leyenda">
+        <span class="chip"><i style="background:var(--ok)"></i>produciendo</span>
+        <span class="chip"><i style="background:var(--azul)"></i>lote asignado</span>
+        <span class="chip"><i style="background:var(--pausa)"></i>en pausa</span>
+        <span class="chip"><i style="background:var(--apagada)"></i>apagada</span>
+        <span class="chip"><i style="background:var(--libre)"></i>sin lote</span>
+      </div>
+      <p style="margin-top:8px">Los estados son de ejemplo, no vienen de Firestore. En la app saldrían de <code>proceso_actual</code>.</p>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+// ---------------------------------------------------------------------------
+// Planos: copiados de lib/inicio/planta_en_vivo.dart (coordenadas del PDF).
+// 17 unidades del plano = 1 m (la escala de las extrusoras en la vista 2D).
+const S = 1 / 17.5; // la nave grande de Piura Futura: 840 u = 48,05 m (plano E-01)
+const pz = (o, n, t, x, y, w, d, h, op = {}) => {
+  const f = n || t === 'bobinador' ? 0.9 : 1;
+  return { n, t, x: x - o[0] + w * (1 - f) / 2, y: y - o[1] + d * (1 - f) / 2, w: w * f, d: d * f, h: h * f, sprite: op.sprite || '',
+    puntos: (op.puntos || []).map(([a, b]) => [a - o[0], b - o[1]]) };
+};
+const rr = (o, l, t, r, b) => ({ x: l - o[0], y: t - o[1], w: r - l, d: b - t });
+const R = (l, t, r, b) => ({ x: l, y: t, w: r - l, d: b - t });
+const muros = (o, tramos) => tramos.map(([x0, y0, x1, y1]) => x0 === x1
+  ? { n: '', t: 'muro', x: x0 - o[0] - 1.5, y: y0 - o[1], w: 3, d: y1 - y0, h: 0 }
+  : { n: '', t: 'muro', x: x0 - o[0], y: y0 - o[1] - 1.5, w: x1 - x0, d: 3, h: 0 });
+
+const oPF = [25, 140];
+const PF = {
+  sede: 'Piura Futura',
+  sitio: rr(oPF, 25, 140, 885, 1180),
+  naves: [rr(oPF, 25, 730, 865, 1180), rr(oPF, 445, 400, 860, 730)],
+  // [alero, flecha] del arco (m): producción según E-02 (+6,15, flecha 5,05); almacén con cumbrera a 8,21 (metrado de cubierta)
+  techos: [[6.15, 5.05], [6.15, 2.06]],
+  montacargas: [[505, 345, 0]],
+  oficinas: [rr(oPF, 35, 290, 140, 730), rr(oPF, 590, 150, 760, 245), rr(oPF, 235, 150, 275, 190)],
+  zonas: [
+    [rr(oPF, 35, 290, 140, 380), 'GERENCIA', 0], [rr(oPF, 35, 380, 140, 495), 'MÓDULO OFICINA', 0],
+    [rr(oPF, 35, 495, 140, 660), 'ZONA DE SCRAP', 0], [rr(oPF, 35, 660, 140, 730), 'MAESTRANZA', 0],
+    [rr(oPF, 590, 150, 760, 245), 'SS.HH. Y VESTIDORES', 0], [rr(oPF, 235, 150, 275, 190), 'GARITA', 0],
+    [rr(oPF, 292, 175, 552, 262), 'ESTACIONAMIENTO', 0], [rr(oPF, 770, 190, 860, 245), 'RESIDUOS PELIGROSOS', 0x22DC2626],
+    [rr(oPF, 445, 400, 650, 610), 'ALMACÉN MATERIA PRIMA', 0x1416A34A], [rr(oPF, 650, 400, 860, 610), 'ALMACÉN PRODUCTO TERMINADO', 0x143B82F6],
+    [rr(oPF, 455, 730, 650, 830), 'ZONA DE LAMINADO', 0x1AEA580C], [rr(oPF, 340, 985, 445, 1145), 'PARIHUELAS', 0x103B82F6],
+    [rr(oPF, 25, 730, 340, 1180), 'ZONA DE EXTRUSIÓN', 0],
+  ],
+  piezas: [
+    pz(oPF, 'EXTRUSORA 3', 'Extrusión', 62, 740, 133, 66, 95, { sprite: 'extrusora3' }),
+    pz(oPF, 'EXTRUSORA 4', 'Extrusión', 62, 833, 170, 64, 120, { sprite: 'extrusora4' }),
+    pz(oPF, 'EXTRUSORA 6', 'Extrusión', 57, 990, 262, 72, 118, { sprite: 'extrusora6', puntos: [[147, 1068], [189, 982], [229, 1068], [293, 1068]] }),
+    pz(oPF, 'EXTRUSORA 7', 'Extrusión', 57, 1085, 262, 65, 108, { sprite: 'extrusora7', puntos: [[97, 1158], [141, 1158], [120, 1076], [200, 1076], [236, 1158], [300, 1158]] }),
+    pz(oPF, 'EXTRUSORA 2', 'Extrusión', 291, 737, 36, 65, 50, { sprite: 'extrusora2' }),
+    pz(oPF, 'EXTRUSORA 1', 'Extrusión', 351, 728, 45, 85, 70, { sprite: 'extrusora1' }),
+    pz(oPF, 'LAMINADORA 1', 'Laminado', 486, 752, 129, 56, 60, { sprite: 'laminadora', puntos: [[479, 790], [547, 813], [614, 779]] }),
+    pz(oPF, 'IMPRESORA 1', 'Impresión', 487, 682, 118, 36, 50, { sprite: 'impresora', puntos: [[473, 679], [527, 676], [604, 693]] }),
+    pz(oPF, 'CORTADORA 3', 'Corte', 490, 905, 55, 37, 24, { sprite: 'cortadora_cw', puntos: [[505, 948], [552, 916]] }),
+    pz(oPF, '', 'mesa', 560, 913, 38, 20, 12), pz(oPF, '', 'mesa', 618, 913, 39, 20, 12),
+    pz(oPF, 'CORTADORA 2', 'Corte', 668, 905, 67, 37, 24, { sprite: 'cortadora_ccw', puntos: [[703, 950], [662, 925]] }),
+    pz(oPF, 'CORTADORA 1', 'Corte', 737, 1045, 63, 50, 24, { sprite: 'cortadora', puntos: [[755, 1097], [750, 1028]] }),
+    pz(oPF, 'CORTADORA 4', 'Corte', 783, 640, 40, 57, 28, { sprite: 'cortadora_180', puntos: [[757, 656], [798, 632], [795, 701]] }),
+    pz(oPF, 'SELLADORA F1', 'Sellado', 455, 1018, 45, 127, 30, { sprite: 'selladora_f', puntos: [[450, 1060], [495, 1145]] }),
+    pz(oPF, 'SELLADORA F2', 'Sellado', 515, 1018, 50, 127, 30, { sprite: 'selladora_f', puntos: [[509, 1056], [527, 1013], [556, 1145]] }),
+    pz(oPF, 'SELLADORA F3', 'Sellado', 578, 1018, 47, 127, 30, { sprite: 'selladora_f', puntos: [[571, 1061], [592, 1145]] }),
+    pz(oPF, 'SELLADORA F4', 'Sellado', 638, 1030, 39, 70, 24, { sprite: 'selladora_2', puntos: [[631, 1058], [649, 1100]] }),
+    pz(oPF, 'SELLADORA L1', 'Sellado', 682, 1030, 32, 88, 24, { sprite: 'selladora_lateral', puntos: [[678, 1053], [691, 1116]] }),
+    pz(oPF, '', 'mesa', 634, 999, 26, 16, 12), pz(oPF, '', 'mesa', 680, 1012, 26, 16, 12),
+    pz(oPF, '', 'mesa', 728, 1000, 26, 16, 12), pz(oPF, '', 'mesa', 813, 778, 30, 18, 12),
+    pz(oPF, 'SELLADORA P1', 'Sellado', 805, 795, 45, 315, 22, { sprite: 'selladora_p1', puntos: [[800, 1076], [786, 967], [795, 842], [828, 804]] }),
+    ...[432, 517, 538].flatMap(y => [pz(oPF, '', 'rack', 467, y, 142, 18, 42), pz(oPF, '', 'rack', 707, y, 142, 18, 42)]),
+    ...[920, 945].flatMap(y => [0, 1, 2, 3, 4].map(i => pz(oPF, '', 'parihuela', 62 + i * 35, y, 26, 20, 10))),
+    ...[0, 1, 2].flatMap(c => [0, 1, 2, 3, 4, 5].map(r => pz(oPF, '', 'parihuela', 347 + c * 36, 990 + r * 26, 22, 18, 10))),
+    pz(oPF, '', 'escritorio', 72, 312, 18, 32, 10, { sprite: 'escritorio_cw' }), pz(oPF, '', 'escritorio', 58, 388, 16, 30, 10, { sprite: 'escritorio_cw' }),
+    pz(oPF, '', 'escritorio', 42, 450, 30, 16, 10), pz(oPF, '', 'escritorio', 92, 450, 30, 16, 10),
+    pz(oPF, '', 'escritorio', 455, 1150, 45, 14, 10), pz(oPF, '', 'escritorio', 515, 1150, 45, 14, 10),
+    pz(oPF, '', 'escritorio', 580, 1150, 42, 14, 10), pz(oPF, '', 'escritorio', 462, 568, 16, 30, 10, { sprite: 'escritorio_cw' }),
+    ...[0, 1, 2, 3, 4, 5].map(i => pz(oPF, '', 'auto', 302 + i * 43, 185, 22, 44, 13, { sprite: ['sedan', 'hatchback', 'suv', 'minivan', 'sedan', 'pickup'][i] })),
+    ...muros(oPF, [
+      [35, 290, 140, 290], [35, 290, 35, 730], [35, 380, 95, 380], [125, 380, 140, 380], [35, 495, 140, 495], [35, 660, 140, 660],
+      [140, 290, 140, 448], [140, 478, 140, 612], [140, 642, 140, 698], [140, 725, 140, 730],
+      [25, 730, 198, 730], [237, 730, 652, 730], [728, 730, 865, 730],
+      [445, 400, 445, 730], [445, 400, 612, 400], [693, 400, 860, 400], [860, 400, 860, 730],
+      [590, 150, 590, 245], [760, 150, 760, 245], [590, 245, 618, 245], [652, 245, 760, 245],
+      [235, 150, 235, 190], [275, 150, 275, 190], [235, 190, 248, 190], [267, 190, 275, 190],
+    ]),
+  ],
+  murosFondo: [[0, 0, 115, 0], [175, 0, 785, 0], [0, 0, 0, 1040]],
+  jardines: [
+    [[-30, -16], [115, -16], [115, 0], [-30, 0]],
+    [[175, -16], [876, -16], [876, 1060], [860, 1060], [860, 75], [785, 0], [175, 0]],
+  ],
+  veredas: [R(-30, -32, 892, -16), R(876, -32, 892, 1060)],
+  pistas: [R(-30, -104, 1200, -32), R(892, -330, 964, 1060)],
+  ovalo: [943, -83, 132],
+  sendas: [R(117, 0, 131, 588), R(117, 574, 418, 588), R(404, 244, 418, 588), R(404, 244, 846, 258), R(175, 0, 563, 12), R(549, 0, 563, 121), R(549, 107, 846, 121)],
+  edificios: [
+    [R(-30, -260, 230, -112), 70, 0xE7DCC8], [R(260, -230, 540, -112), 52, 0xD9DEE5], [R(570, -270, 780, -150), 88, 0xDDE6EE],
+    [R(-210, 30, -40, 380), 62, 0xDDE6EE], [R(-210, 420, -40, 780), 46, 0xE7DCC8], [R(-210, 820, -40, 1060), 70, 0xD9DEE5],
+    [R(20, 1110, 420, 1220), 12, 0xE7DCC8], [R(460, 1110, 860, 1220), 10, 0xD9DEE5],
+    [R(1020, 50, 1150, 430), 14, 0xDDE6EE], [R(1020, 470, 1150, 900), 12, 0xE7DCC8],
+  ],
+  comedor: {
+    losa: rr(oPF, 587, 147, 763, 248), descanso: rr(oPF, 574, 147, 587, 162), escalera: rr(oPF, 574, 162, 587, 238),
+    mesas: [168, 204].flatMap(y => [603, 658, 713].map(x => rr(oPF, x, y, x + 34, y + 12))),
+  },
+  inicio: [145, 30], rumbo: Math.PI, // por el portón, mirando al sur
+};
+
+const oP1 = [205, 217];
+const P1 = {
+  sede: 'Planta 1',
+  sitio: rr(oP1, 205, 217, 1200, 713),
+  naves: [rr(oP1, 205, 217, 1200, 713)],
+  techos: [[6.15, 5.05]], // sin plano de estructuras: mismo arco que Piura Futura
+  montacargas: [[95, 83, 0]],
+  oficinas: [rr(oP1, 205, 375, 405, 612), rr(oP1, 205, 650, 470, 713)],
+  zonas: [
+    [rr(oP1, 205, 217, 410, 370), 'ZONA DE DESPACHO', 0x1064748B], [rr(oP1, 415, 220, 460, 280), 'NO CONFORME', 0x18DC2626],
+    [rr(oP1, 440, 288, 595, 397), 'ALMACÉN PRODUCTO TERMINADO', 0x143B82F6], [rr(oP1, 440, 495, 595, 605), 'ALMACÉN MATERIA PRIMA', 0x1416A34A],
+    [rr(oP1, 600, 250, 905, 520), 'ZONA DE SELLADO', 0x10F97316], [rr(oP1, 600, 525, 910, 705), 'ZONA DE CORTE', 0x107C3AED],
+    [rr(oP1, 930, 225, 1200, 600), 'ZONA DE EXTRUSIÓN', 0x10334155], [rr(oP1, 205, 375, 405, 612), 'OFICINA', 0],
+    [rr(oP1, 205, 612, 600, 650), 'HALL', 0], [rr(oP1, 205, 650, 335, 713), 'SS.HH.', 0], [rr(oP1, 335, 650, 400, 713), 'VESTUARIOS', 0],
+    [rr(oP1, 400, 650, 470, 713), 'MANTENIMIENTO', 0], [rr(oP1, 495, 650, 600, 713), 'DESINFECCIÓN', 0x1838BDF8],
+    [rr(oP1, 772, 218, 835, 247), 'ENVASES', 0], [rr(oP1, 873, 218, 940, 247), 'MUESTREO', 0],
+  ],
+  piezas: [
+    pz(oP1, 'SELLADORA F1', 'Sellado', 622, 330, 68, 170, 30, { sprite: 'selladora_f' }), pz(oP1, 'SELLADORA F2', 'Sellado', 708, 322, 68, 120, 30, { sprite: 'selladora_f' }),
+    pz(oP1, 'SELLADORA L1', 'Sellado', 824, 322, 54, 128, 26, { sprite: 'selladora_lateral' }),
+    pz(oP1, 'CORTADORA', 'Corte', 733, 526, 45, 76, 24, { sprite: 'cortadora_ccw' }), pz(oP1, '', 'mesa', 633, 595, 40, 75, 12),
+    pz(oP1, 'TROQUELADORA', 'Troquelado', 735, 603, 165, 88, 30),
+    pz(oP1, 'EXTRUSORA 1', 'Extrusión', 985, 262, 184, 58, 64, { sprite: 'extrusora3_180' }),
+    pz(oP1, 'EXTRUSORA 2', 'Extrusión', 945, 400, 235, 85, 95, { sprite: 'extrusora4_180' }),
+    pz(oP1, '', 'mesa', 775, 222, 58, 22, 12), pz(oP1, '', 'mesa', 876, 222, 62, 22, 12),
+    ...[455, 500, 547].flatMap(bx => [300, 320, 353, 373, 505, 525, 557, 577].map(by => pz(oP1, '', 'parihuela', bx, by, 32, 16, 10))),
+    pz(oP1, '', 'escritorio', 413, 540, 30, 16, 10), pz(oP1, '', 'parihuela', 422, 225, 32, 50, 16),
+    pz(oP1, '', 'escritorio', 225, 425, 18, 38, 10, { sprite: 'escritorio_cw' }), pz(oP1, '', 'escritorio', 225, 505, 18, 38, 10, { sprite: 'escritorio_cw' }),
+    pz(oP1, '', 'escritorio', 292, 431, 40, 16, 10, { sprite: 'escritorio_180' }), pz(oP1, '', 'escritorio', 332, 431, 40, 16, 10, { sprite: 'escritorio_180' }),
+    pz(oP1, '', 'escritorio', 372, 395, 16, 36, 10, { sprite: 'escritorio_cw' }), pz(oP1, '', 'escritorio', 325, 540, 60, 16, 10),
+    ...muros(oP1, [
+      [205, 375, 255, 375], [288, 375, 405, 375], [405, 375, 405, 612], [205, 612, 252, 612], [293, 612, 405, 612],
+      [205, 650, 225, 650], [265, 650, 335, 650], [362, 650, 403, 650], [432, 650, 470, 650],
+      [335, 650, 335, 713], [400, 650, 400, 713], [470, 650, 470, 713],
+      [412, 217, 412, 300], [440, 400, 600, 400], [600, 250, 600, 400], [600, 470, 600, 612], [405, 612, 600, 612], [600, 650, 600, 713],
+    ]),
+  ],
+  murosFondo: [[0, 0, 995, 0], [0, 0, 0, 38], [0, 123, 0, 395], [0, 433, 0, 496]],
+  jardines: [
+    [[-16, -30], [0, -30], [0, 38], [-16, 38]], [[-16, 123], [0, 123], [0, 395], [-16, 395]], [[-16, 433], [0, 433], [0, 526], [-16, 526]],
+  ],
+  veredas: [R(-32, -30, -16, 526)],
+  pistas: [R(-104, -60, -32, 556)],
+  sendas: [], ovalo: null,
+  edificios: [
+    [R(-270, -40, -115, 220), 62, 0xE7DCC8], [R(-270, 260, -115, 540), 46, 0xD9DEE5], [R(10, -220, 360, -40), 72, 0xDDE6EE],
+    [R(400, -200, 740, -40), 50, 0xE7DCC8], [R(780, -230, 1100, -40), 82, 0xD9DEE5],
+  ],
+  comedor: null,
+  inicio: [-8, 414], rumbo: -Math.PI / 2, // entrada del personal, mirando al este
+};
+const PLANOS = [PF, P1];
+
+// ---------------------------------------------------------------------------
+const ESTADOS = {
+  produciendo: { color: 0x22a35a, texto: 'produciendo' },
+  asignada: { color: 0x3b7be8, texto: 'lote asignado' },
+  pausa: { color: 0xe09a1a, texto: 'en pausa' },
+  apagada: { color: 0x6b7684, texto: 'apagada' },
+  libre: { color: 0xa3acb7, texto: 'sin lote' },
+};
+const COLOR_TIPO = { 'Extrusión': 0x46698f, 'Sellado': 0xc4682f, 'Corte': 0x6d55a3, 'Impresión': 0x2f7d6d, 'Laminado': 0xb08a2e, 'Troquelado': 0x7a5c48 };
+const HOLGURA = 1.0; // m alrededor de la huella del plano 2D en que puede crecer una máquina
+const CAPA = 0.22, OJOS = 1.7, ALTO_MURO = 3.15, ALTO_PISO2 = 3.35; // muro de bloque P-14 hasta +3,15 (plano E-02)
+const hex = c => '#' + c.toString(16).padStart(6, '0');
+
+function azar(semilla) { let a = semilla >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
+// --- Render --------------------------------------------------------------------
+const canvas = document.getElementById('c');
+const movil = matchMedia('(pointer: coarse)').matches;
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: !movil, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, movil ? 1 : 1.5));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// La planta no se mueve: las sombras se calculan solo cuando algo cambia (armar, modelo que termina de cargar)
+renderer.shadowMap.autoUpdate = false;
+const rehacerSombras = () => { renderer.shadowMap.needsUpdate = true; };
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+const CIELO = 0xbfd8ec;
+scene.background = new THREE.Color(CIELO);
+scene.fog = new THREE.Fog(CIELO, 70, 260);
+// Entorno para los reflejos: sin esto el acero y la pintura de los modelos se ven negros
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 600);
+camera.rotation.order = 'YXZ';
+scene.add(new THREE.HemisphereLight(0xdcebff, 0x8a7a62, 0.75));
+const sol = new THREE.DirectionalLight(0xfff1dc, 2.2);
+sol.castShadow = true;
+sol.shadow.mapSize.set(movil ? 1024 : 2048, movil ? 1024 : 2048);
+sol.shadow.bias = -0.0004;
+scene.add(sol, sol.target);
+// Arena de Piura alrededor
+const arena = new THREE.Mesh(new THREE.PlaneGeometry(2000, 2000), new THREE.MeshStandardMaterial({ color: 0xcdb994, roughness: 1 }));
+arena.rotation.x = -Math.PI / 2; arena.position.y = -0.03; arena.receiveShadow = true;
+scene.add(arena);
+
+const mats = new Map();
+function mat(color, extra = {}) {
+  const k = color + JSON.stringify(extra);
+  if (!mats.has(k)) mats.set(k, new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0.05, ...extra }));
+  return mats.get(k);
+}
+const geoCaja = new THREE.BoxGeometry(1, 1, 1);
+function caja(padre, cx, y0, cz, w, h, d, m, sombra = true) {
+  const me = new THREE.Mesh(geoCaja, m);
+  me.scale.set(w, h, d); me.position.set(cx, y0 + h / 2, cz);
+  me.castShadow = sombra; me.receiveShadow = true;
+  padre.add(me); return me;
+}
+function cilindro(padre, r, largo, m, eje = 'y') {
+  const me = new THREE.Mesh(new THREE.CylinderGeometry(r, r, largo, 20), m);
+  if (eje === 'z') me.rotation.x = Math.PI / 2;
+  if (eje === 'x') me.rotation.z = Math.PI / 2;
+  me.castShadow = true; me.receiveShadow = true; padre.add(me); return me;
+}
+// Piso: rect del plano (unidades) a un plano horizontal
+function piso(padre, r, y, m) {
+  const me = new THREE.Mesh(new THREE.PlaneGeometry(r.w * S, r.d * S), m);
+  me.rotation.x = -Math.PI / 2; me.position.set((r.x + r.w / 2) * S, y, (r.y + r.d / 2) * S);
+  me.receiveShadow = true; padre.add(me); return me;
+}
+
+function textoEtiqueta(nombre, estado) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(21,24,28,0.86)'; g.beginPath(); g.roundRect(4, 4, 504, 120, 18); g.fill();
+  g.fillStyle = hex(ESTADOS[estado].color); g.beginPath(); g.arc(52, 64, 18, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#eceae4'; g.font = '700 50px "Barlow Condensed", Arial Narrow, sans-serif'; g.textBaseline = 'middle';
+  g.fillText(nombre, 90, 50, 400);
+  g.fillStyle = '#a3a8ad'; g.font = '500 30px Barlow, sans-serif'; g.fillText(ESTADOS[estado].texto, 90, 94, 400);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true }));
+  s.scale.set(2.4, 0.6, 1); s.userData.etiqueta = true; return s;
+}
+
+// Zona pintada en el piso: fondo del color del plano, borde amarillo y nombre.
+function zonaPiso(padre, r, nombre, argb) {
+  const wm = r.w * S, dm = r.d * S, ppm = Math.min(48, 2048 / Math.max(wm, dm));
+  const c = document.createElement('canvas'); c.width = Math.max(64, Math.round(wm * ppm)); c.height = Math.max(64, Math.round(dm * ppm));
+  const g = c.getContext('2d');
+  const a = ((argb >>> 24) & 255) / 255;
+  if (a > 0) { g.fillStyle = `rgba(${(argb >> 16) & 255},${(argb >> 8) & 255},${argb & 255},${Math.min(1, a * 3.5)})`; g.fillRect(0, 0, c.width, c.height); }
+  g.strokeStyle = 'rgba(227,181,59,0.9)'; g.lineWidth = Math.max(4, ppm * 0.1); g.strokeRect(g.lineWidth / 2, g.lineWidth / 2, c.width - g.lineWidth, c.height - g.lineWidth);
+  const fs = Math.min(ppm * 0.9, c.width * 0.9 / (nombre.length * 0.52), c.height * 0.3);
+  g.font = `700 ${fs}px "Barlow Condensed", Arial Narrow, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = 'rgba(200,150,30,0.85)'; g.fillText(nombre, c.width / 2, c.height / 2);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  const m = new THREE.MeshStandardMaterial({ map: t, transparent: true, roughness: 0.9, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+  piso(padre, r, 0.025, m);
+}
+
+// --- Modelos de Blender (herramientas/planta_blender/exportar_glb.py) ---------
+// Cada .glb viene centrado en su base y girado como su sprite (x = x del plano,
+// z = y del plano). Al cargar se juntan todas las mallas por material (pocas
+// llamadas de dibujo: así anda en las tablets).
+// Los .glb se publican como .glb.wasm (el hosting no sirve .glb; el cargador los baja en binario igual).
+const cargador = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+const modelos = new Map(), materialesModelo = new Map();
+const carga = { total: 0, listos: 0 };
+function avisarCarga() {
+  const t = carga.listos < carga.total ? `Cargando modelos ${carga.listos} de ${carga.total}…` : '';
+  document.getElementById('carga').textContent = t;
+}
+function modelo(nombre) {
+  if (!modelos.has(nombre)) {
+    carga.total++; avisarCarga();
+    modelos.set(nombre, cargador.loadAsync(`modelos/${nombre}.glb.wasm`).then(g => compactar(g.scene))
+      .catch(e => { console.warn('modelo', nombre, e); return null; })
+      .finally(() => { carga.listos++; avisarCarga(); }));
+  }
+  return modelos.get(nombre);
+}
+function triangulos(geo, desde, cuantos, m, salida) {
+  const idx = geo.index, pos = geo.attributes.position, nor = geo.attributes.normal;
+  const nm = new THREE.Matrix3().getNormalMatrix(m), espejo = m.determinant() < 0, v = new THREE.Vector3();
+  const P = new Float32Array(cuantos * 3), N = new Float32Array(cuantos * 3);
+  for (let i = 0; i < cuantos; i++) {
+    const k = espejo ? i - (i % 3) + [0, 2, 1][i % 3] : i; // espejado: invertir el giro del triángulo
+    const j = idx ? idx.getX(desde + k) : desde + k;
+    v.fromBufferAttribute(pos, j).applyMatrix4(m); P[i * 3] = v.x; P[i * 3 + 1] = v.y; P[i * 3 + 2] = v.z;
+    if (nor) { v.fromBufferAttribute(nor, j).applyMatrix3(nm).normalize(); N[i * 3] = v.x; N[i * 3 + 1] = v.y; N[i * 3 + 2] = v.z; }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(P, 3));
+  if (nor) g.setAttribute('normal', new THREE.BufferAttribute(N, 3)); else g.computeVertexNormals();
+  salida.push(g);
+}
+function compactar(raiz) {
+  raiz.updateMatrixWorld(true);
+  const porMat = new Map(), m = new THREE.Matrix4();
+  raiz.traverse(o => {
+    if (!o.isMesh) return;
+    const geo = o.geometry, mats = Array.isArray(o.material) ? o.material : [o.material];
+    const partes = Array.isArray(o.material) && geo.groups.length ? geo.groups.map(g => [g.start, g.count, mats[g.materialIndex]])
+      : [[0, geo.index ? geo.index.count : geo.attributes.position.count, mats[0]]];
+    const veces = o.isInstancedMesh ? o.count : 1;
+    for (let i = 0; i < veces; i++) {
+      if (o.isInstancedMesh) { o.getMatrixAt(i, m); m.premultiply(o.matrixWorld); } else m.copy(o.matrixWorld);
+      for (const [desde, cuantos, mt] of partes) {
+        if (!porMat.has(mt)) porMat.set(mt, []);
+        triangulos(geo, desde, cuantos, m, porMat.get(mt));
+      }
+    }
+  });
+  const obj = new THREE.Group();
+  for (const [fisico, gs] of porMat) {
+    const geo = mergeGeometries(gs); if (!geo) continue;
+    gs.forEach(g => g.dispose());
+    // Material estándar: el físico con transmisión (rollos de film) obliga a dibujar la escena dos veces por cuadro
+    // Solo el film queda transparente (rollos con transmisión y córneas: opacos, se fusionan con el resto)
+    const transp = fisico.transparent && /^film/.test(fisico.name), opacidad = transp ? fisico.opacity : 1;
+    // Iguales entre modelos (mismo color y acabado): un solo material, así se fusionan juntos
+    const clave = [fisico.color.getHex(), fisico.roughness.toFixed(2), fisico.metalness.toFixed(2), fisico.emissive.getHex(), fisico.emissiveIntensity.toFixed(1), transp, opacidad.toFixed(2), transp ? fisico.name : ''].join('|');
+    const mt = materialesModelo.get(clave) ?? materialesModelo.set(clave, new THREE.MeshStandardMaterial({
+      name: fisico.name, color: fisico.color, roughness: fisico.roughness, metalness: fisico.metalness,
+      emissive: fisico.emissive, emissiveIntensity: fisico.emissiveIntensity,
+      transparent: transp, opacity: opacidad, depthWrite: !transp,
+      side: THREE.DoubleSide, // varias piezas del .blend vienen sin espesor
+    })).get(clave);
+    compartidos.add(mt);
+    fisico.dispose();
+    const me = new THREE.Mesh(geo, mt); me.castShadow = !mt.transparent; me.receiveShadow = true; me.name = mt.name || '';
+    obj.add(me);
+  }
+  return { obj, caja: new THREE.Box3().setFromObject(obj) };
+}
+/** Junta en una malla por material todo lo estático sin textura bajo [grupo] (cerchas, columnas, muros...). */
+// Por celdas de [CELDA] m: pocas llamadas de dibujo sin perder el recorte de lo que no está en cámara.
+const CELDA = 24;
+function fusionar(grupo, soloHijos = false, excluir = []) {
+  grupo.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(grupo.matrixWorld).invert(), m = new THREE.Matrix4(), c = new THREE.Vector3();
+  const porMat = new Map(), quitar = [];
+  const ver = o => {
+    if (!o.isMesh || o.isInstancedMesh || !o.visible || o.material.map || o.material.transparent) return;
+    const geo = o.geometry, n = geo.index ? geo.index.count : geo.attributes.position.count;
+    if (!geo.boundingSphere) geo.computeBoundingSphere();
+    c.copy(geo.boundingSphere.center).applyMatrix4(o.matrixWorld);
+    const r = geo.boundingSphere.radius * o.matrixWorld.getMaxScaleOnAxis();
+    const clave = o.material.uuid + (r > CELDA ? '|grande' : '|' + Math.floor(c.x / CELDA) + '|' + Math.floor(c.z / CELDA));
+    m.multiplyMatrices(inv, o.matrixWorld);
+    if (!porMat.has(clave)) porMat.set(clave, { mt: o.material, gs: [], sombra: o.castShadow });
+    triangulos(geo, 0, n, m, porMat.get(clave).gs);
+    quitar.push(o);
+  };
+  const recorrer = o => { if (excluir.includes(o)) return; ver(o); o.children.forEach(recorrer); };
+  if (soloHijos) grupo.children.forEach(ver); else recorrer(grupo);
+  for (const o of quitar) o.removeFromParent(); // sin dispose: los clones comparten geometría con su modelo
+  for (const { mt, gs, sombra } of porMat.values()) {
+    const me = new THREE.Mesh(mergeGeometries(gs), mt); gs.forEach(g => g.dispose());
+    me.castShadow = sombra; me.receiveShadow = true; grupo.add(me);
+  }
+}
+// sprite del plano -> archivo y giro extra (las variantes _cw/_ccw/_180 son el mismo modelo girado)
+function archivoDe(sprite) {
+  const m = sprite.match(/^(.*?)(?:_(cw|ccw|180))?$/);
+  return [m[1], { cw: -Math.PI / 2, ccw: Math.PI / 2, 180: Math.PI }[m[2]] || 0];
+}
+/** Pone el modelo centrado en (cx, cz), girado [giro] y achicado para caber en W×D (m) si [ajustar]. */
+async function colocar(padre, sprite, cx, cz, W, D, { giro = 0, ajustar = true } = {}) {
+  const [archivo, extra] = archivoDe(sprite);
+  const m = await modelo(archivo);
+  if (!m || !padre.parent) return null; // sin modelo, o ya se cambió de planta
+  const o = m.obj.clone();
+  o.userData.compartido = true;
+  const r = giro + extra, giradoX = Math.abs(Math.sin(r)) > 0.5;
+  const sx = m.caja.max.x - m.caja.min.x, sz = m.caja.max.z - m.caja.min.z;
+  const k = ajustar ? Math.min(1, W / (giradoX ? sz : sx), D / (giradoX ? sx : sz)) : 1;
+  o.scale.setScalar(k); o.rotation.y = r; o.position.set(cx, 0, cz);
+  padre.add(o);
+  rehacerSombras();
+  return { o, alto: m.caja.max.y * k, k };
+}
+
+// --- Naves: muro de bloque, calaminón, columnas, arcos y cubierta ----------
+// Plano E-02: muro P-14 hasta +3,15 con viga V1, cerramiento de calaminón
+// hasta el arranque del arco (+6,15), arco reticulado AM-1 de 0,60 m de peralte
+// con tirante en cada eje de columnas; E-01: ejes a 6,09 / 5,91 / 5,91 / 5,47 /
+// 1,32 / 5,44 / 5,91 / 5,91 / 6,09 m en la nave de 48,05 m.
+const EJES_E01 = [0, 6.09, 12, 17.91, 23.38, 24.7, 30.14, 36.05, 41.96, 48.05];
+function texturaCalamina(color, translucida = false) {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 8;
+  const g = c.getContext('2d');
+  g.fillStyle = color; g.fillRect(0, 0, 128, 8);
+  for (let i = 0; i < 4; i++) { // 4 crestas por plancha de 1,024 m
+    const x = i * 32;
+    const gr = g.createLinearGradient(x, 0, x + 32, 0);
+    gr.addColorStop(0, 'rgba(0,0,0,0.18)'); gr.addColorStop(0.2, 'rgba(255,255,255,0.22)'); gr.addColorStop(0.35, 'rgba(0,0,0,0.12)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(x, 0, 32, 8);
+  }
+  if (!translucida) { g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(127, 0, 1, 8); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  return t;
+}
+const texCalamina = texturaCalamina('#c9cdd0'), texCalaminaMuro = texturaCalamina('#d9dcdc'), texTraslucida = texturaCalamina('#eef3f2', true);
+function texturaBloque() {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+  const g = c.getContext('2d');
+  g.fillStyle = '#e6e1d6'; g.fillRect(0, 0, 128, 128);
+  g.strokeStyle = 'rgba(120,110,95,0.35)'; g.lineWidth = 2;
+  for (let f = 0; f < 6; f++) { // bloque de 0,40 × 0,20 m, en traba
+    const y = f * 21.33; g.beginPath(); g.moveTo(0, y); g.lineTo(128, y); g.stroke();
+    for (let x = (f % 2) * 32; x < 128; x += 64) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 21.33); g.stroke(); }
+  }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const texBloque = texturaBloque();
+/** Piso de concreto: un paño de [lado] m con su junta de corte, granos y manchas de uso. */
+function texturaPiso(base, lado, junta, semilla) {
+  const c = document.createElement('canvas'); c.width = c.height = 512;
+  const g = c.getContext('2d'), rnd = azar(semilla);
+  g.fillStyle = base; g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 26; i++) { // manchas de aceite, llantas y desgaste
+    const x = rnd() * 512, y = rnd() * 512, r = 20 + rnd() * 90, gr = g.createRadialGradient(x, y, 0, x, y, r);
+    const osc = rnd() < 0.7;
+    gr.addColorStop(0, osc ? `rgba(40,36,30,${0.05 + rnd() * 0.08})` : `rgba(255,255,255,${0.04 + rnd() * 0.05})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  const img = g.getImageData(0, 0, 512, 512), d = img.data;
+  for (let i = 0; i < d.length; i += 4) { const n = (rnd() - 0.5) * 22; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
+  g.putImageData(img, 0, 0);
+  if (junta) { g.fillStyle = 'rgba(30,28,25,0.55)'; g.fillRect(0, 0, 512, 2); g.fillRect(0, 0, 2, 512); }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  t.userData.lado = lado; return t;
+}
+const texConcreto = texturaPiso('#aaa79f', 6, true, 5), texAsfalto = texturaPiso('#4b4c50', 8, false, 9), texVereda = texturaPiso('#bdb8ae', 1.5, true, 3);
+/** Material con la textura repetida a su escala real sobre un rect del plano. */
+function matPiso(tex, r, extra = {}) {
+  const t = tex.clone(); t.needsUpdate = true; t.repeat.set(r.w * S / tex.userData.lado, r.d * S / tex.userData.lado);
+  return new THREE.MeshStandardMaterial({ map: t, roughness: 0.8, ...extra });
+}
+
+/** Arco de una nave: altura de la cubierta a [t] m del eje (en el sentido de la luz). */
+function arco(luz, alero, flecha) {
+  const R = (luz * luz / 4 + flecha * flecha) / (2 * flecha), base = Math.sqrt(R * R - luz * luz / 4);
+  return t => alero + Math.sqrt(Math.max(0, R * R - t * t)) - base;
+}
+
+/** Datos de una nave en metros: la luz va por el lado corto (el arco cruza de un muro largo al otro). */
+function datosNave(r, [alero, flecha]) {
+  const X = r.x * S, Z = r.y * S, W = r.w * S, D = r.d * S, luzEnZ = W >= D;
+  const luz = luzEnZ ? D : W, largo = luzEnZ ? W : D, h = arco(luz, alero, flecha);
+  return { X, Z, W, D, luzEnZ, luz, largo, alero, flecha, h,
+    alto: (x, z) => h(luzEnZ ? z - (Z + D / 2) : x - (X + W / 2)) };
+}
+
+// Superficie del arco entre [a, b] (m a lo largo de la nave), en ejes locales: largo en x, luz en z.
+function geoArco(n, a, b, sobre = 0, alero = 0.35) {
+  const seg = 40, pos = [], uv = [], ind = [];
+  for (let i = 0; i <= seg; i++) {
+    const t = -n.luz / 2 - alero + (n.luz + 2 * alero) * i / seg, y = n.h(Math.min(Math.abs(t), n.luz / 2)) + (Math.abs(t) > n.luz / 2 ? -(Math.abs(t) - n.luz / 2) * 0.35 : 0) + sobre;
+    for (const x of [a, b]) { pos.push(x, y, t); uv.push(x / 1.024, i / seg * 4); }
+  }
+  for (let i = 0; i < seg; i++) ind.push(i * 2, i * 2 + 1, i * 2 + 2, i * 2 + 1, i * 2 + 3, i * 2 + 2);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(ind); g.computeVertexNormals();
+  return g;
+}
+function tubo(padre, puntos, r, m) {
+  const camino = new THREE.CurvePath();
+  for (let i = 1; i < puntos.length; i++) camino.add(new THREE.LineCurve3(puntos[i - 1], puntos[i]));
+  const me = new THREE.Mesh(new THREE.TubeGeometry(camino, puntos.length * 2, r, 5, false), m);
+  me.castShadow = true; padre.add(me); return me;
+}
+
+function armarNave(muros, techos, r, perfil, tramosMuro, otras) {
+  const n = datosNave(r, perfil);
+  const acero = mat(0x7d8489, { metalness: 0.6, roughness: 0.45 }), concreto = mat(0xb9b5ab, { roughness: 0.9 });
+  // Grupo local: largo en x, luz en z
+  const g = new THREE.Group();
+  g.position.set(n.X + n.W / 2, 0, n.Z + n.D / 2);
+  if (!n.luzEnZ) g.rotation.y = Math.PI / 2;
+  techos.add(g);
+  const x0 = -n.largo / 2;
+  // Cubierta: calaminón con una franja traslúcida (plancha de 1,024 m) cada ~6 m
+  const tc = texCalamina.clone(); tc.needsUpdate = true;
+  const cubierta = new THREE.Mesh(geoArco(n, x0, -x0), new THREE.MeshStandardMaterial({ map: tc, roughness: 0.55, metalness: 0.35, side: THREE.DoubleSide, emissive: 0x6b6f72, emissiveMap: tc, emissiveIntensity: 0.55 }));
+  cubierta.receiveShadow = true; g.add(cubierta); // no proyecta sombra: el sol entra como por las traslúcidas
+  const trasl = new THREE.MeshStandardMaterial({ map: texTraslucida, roughness: 0.3, transparent: true, opacity: 0.85, emissive: 0xffffff, emissiveIntensity: 0.35, side: THREE.DoubleSide, depthWrite: false });
+  const ejes = Math.abs(n.largo - 48.05) < 1.5 ? EJES_E01.map(e => e * n.largo / 48.05) : Array.from({ length: Math.round(n.largo / 6) + 1 }, (_, i) => i * n.largo / Math.round(n.largo / 6));
+  for (let i = 0; i < ejes.length - 1; i++) {
+    const c = (ejes[i] + ejes[i + 1]) / 2;
+    g.add(new THREE.Mesh(geoArco(n, x0 + c - 0.512, x0 + c + 0.512, 0.03, -n.luz * 0.18), trasl));
+  }
+  // Arcos AM-1 (brida superior, inferior y celosía), tirante y columnas en cada eje
+  const pts = (bajar, k) => Array.from({ length: k + 1 }, (_, i) => { const t = -n.luz / 2 + n.luz * i / k; return new THREE.Vector3(0, n.h(t) - 0.05 - bajar, t); });
+  for (const e of ejes) {
+    const a = new THREE.Group(); a.position.x = x0 + e; g.add(a);
+    const sup = pts(0, 24), inf = pts(0.6, 24);
+    tubo(a, sup, 0.05, acero); tubo(a, inf, 0.04, acero);
+    const zz = []; for (let i = 0; i <= 24; i++) zz.push(i % 2 ? sup[i] : inf[i]);
+    tubo(a, zz, 0.022, acero);
+    tubo(a, [new THREE.Vector3(0, n.alero, -n.luz / 2), new THREE.Vector3(0, n.alero, n.luz / 2)], 0.016, acero); // tirante
+    for (const s of [-1, 1]) caja(g, x0 + e, 0, s * (n.luz / 2 - 0.25), 0.25, n.alero, 0.5, concreto);
+  }
+  // Correas (vigas VG1) a lo largo de la nave
+  for (const f of [-0.42, -0.28, -0.14, 0, 0.14, 0.28, 0.42]) {
+    const t = f * n.luz; caja(g, 0, n.h(t) - 0.2, t, n.largo, 0.12, 0.08, acero, false);
+  }
+  // Viga V1 sobre el muro y columnas de los hastiales cada ~2,93 m
+  for (const s of [-1, 1]) caja(g, 0, ALTO_MURO, s * (n.luz / 2 - 0.12), n.largo, 0.4, 0.25, concreto);
+  const nh = Math.max(2, Math.round(n.luz / 2.93));
+  for (const s of [-1, 1]) for (let i = 1; i < nh; i++) {
+    const t = -n.luz / 2 + n.luz * i / nh;
+    caja(g, s * (n.largo / 2 - 0.15), 0, t, 0.25, n.h(t) - 0.4, 0.25, concreto);
+  }
+  // Campanas de luz colgadas bajo los arcos
+  const campana = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.32, 0.3, 14), new THREE.MeshStandardMaterial({ color: 0xfff6dc, emissive: 0xfff2cc, emissiveIntensity: 1.2 }), 64);
+  let nc = 0; const mt = new THREE.Matrix4();
+  for (let i = 0; i < ejes.length - 1; i++) for (const f of [-0.25, 0.25]) {
+    if (nc >= 64) break;
+    mt.makeTranslation(x0 + (ejes[i] + ejes[i + 1]) / 2, n.h(f * n.luz) - 1.1, f * n.luz); campana.setMatrixAt(nc++, mt);
+  }
+  campana.count = nc; g.add(campana);
+
+  // Cerramiento por cada lado: calaminón desde +3,15 hasta el alero (lados
+  // largos) o hasta el arco (hastiales). Donde el plano no trae muro en ese
+  // lado, también el muro de bloque (y se bloquea el paso).
+  const lados = [
+    { horiz: true, fijo: n.Z, a: n.X, b: n.X + n.W }, { horiz: true, fijo: n.Z + n.D, a: n.X, b: n.X + n.W },
+    { horiz: false, fijo: n.X, a: n.Z, b: n.Z + n.D }, { horiz: false, fijo: n.X + n.W, a: n.Z, b: n.Z + n.D },
+  ];
+  for (const l of lados) {
+    // ¿otra nave más alta comparte este lado? Entonces el cerramiento es el suyo.
+    if (otras.some(o => o.alero + o.flecha > n.alero + n.flecha
+      && (l.horiz ? [o.Z, o.Z + o.D] : [o.X, o.X + o.W]).some(v => Math.abs(v - l.fijo) < 0.3)
+      && (l.horiz ? Math.min(l.b, o.X + o.W) - Math.max(l.a, o.X) : Math.min(l.b, o.Z + o.D) - Math.max(l.a, o.Z)) > 1)) continue;
+    const top = s => n.alto(l.horiz ? s : l.fijo, l.horiz ? l.fijo : s);
+    const forma = new THREE.Shape();
+    forma.moveTo(l.a, ALTO_MURO); forma.lineTo(l.b, ALTO_MURO);
+    for (let i = 0; i <= 32; i++) { const s = l.b - (l.b - l.a) * i / 32; forma.lineTo(s, top(s)); }
+    const tm = texCalaminaMuro.clone(); tm.needsUpdate = true; tm.repeat.set(1 / 1.024, 1);
+    const me = new THREE.Mesh(new THREE.ShapeGeometry(forma), new THREE.MeshStandardMaterial({ map: tm, roughness: 0.6, metalness: 0.25, side: THREE.DoubleSide }));
+    me.castShadow = true; me.receiveShadow = true;
+    if (l.horiz) me.position.z = l.fijo; else { me.rotation.y = -Math.PI / 2; me.position.x = l.fijo; }
+    muros.add(me);
+    const conMuro = tramosMuro.some(([h, f, a, b]) => h === l.horiz && Math.abs(f - l.fijo) < 0.3 && b > l.a && a < l.b);
+    if (!conMuro) {
+      const w = l.horiz ? l.b - l.a : 0.2, d = l.horiz ? 0.2 : l.b - l.a, cx = l.horiz ? (l.a + l.b) / 2 : l.fijo, cz = l.horiz ? l.fijo : (l.a + l.b) / 2;
+      const tb = texBloque.clone(); tb.needsUpdate = true; tb.repeat.set(Math.max(w, d) / 1.2, ALTO_MURO / 1.2);
+      caja(muros, cx, 0, cz, w, ALTO_MURO, d, new THREE.MeshStandardMaterial({ map: tb, roughness: 0.95 }));
+      bloqueos.push([cx - w / 2, cz - d / 2, cx + w / 2, cz + d / 2]);
+    }
+  }
+  return n;
+}
+
+// --- Máquinas (geometría simple por tipo, en ejes locales: largo en x) -------
+function baliza(g, x, y, z, estado) {
+  caja(g, x, y, z, 0.06, 0.25, 0.06, mat(0x2a2d31));
+  const c = ESTADOS[estado].color;
+  const luz = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.28, 14), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: estado === 'apagada' || estado === 'libre' ? 0.2 : 1.6 }));
+  luz.position.set(x, y + 0.4, z); g.add(luz);
+}
+function extrusora(g, L, B, H, estado, cuerpo) {
+  const acero = mat(0x8f979e, { metalness: 0.5, roughness: 0.45 });
+  const x0 = -L / 2, tx = x0 + L * 0.5, s = Math.min(B * 0.9, 3.2);
+  caja(g, x0 + L * 0.2, 0, 0, L * 0.38, 0.9, B * 0.4, cuerpo);           // bancada del extrusor
+  const cano = cilindro(g, 0.2, L * 0.32, acero, 'x'); cano.position.set(x0 + L * 0.22, 1.12, 0);
+  const tolva = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.14, 0.9, 16), mat(0xd7dade, { metalness: 0.4 }));
+  tolva.position.set(x0 + L * 0.08, 1.75, 0); tolva.castShadow = true; g.add(tolva);
+  const cabezal = cilindro(g, 0.55, 0.45, acero); cabezal.position.set(tx, 0.9, 0);
+  for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) caja(g, tx + dx * s / 2, 0, dz * s / 2, 0.14, H, 0.14, mat(0xe0a020)); // torre
+  for (const y of [H * 0.45, H - 0.15]) { caja(g, tx, y, -s / 2, s, 0.12, 0.12, mat(0xe0a020)); caja(g, tx, y, s / 2, s, 0.12, 0.12, mat(0xe0a020)); }
+  caja(g, tx, H - 0.6, 0, s * 0.9, 0.45, 0.5, acero);                      // rodillos de tiro
+  if (estado === 'produciendo' || estado === 'pausa') {
+    const burbuja = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.3, s * 0.22, H - 1.9, 28, 1, true),
+      new THREE.MeshStandardMaterial({ color: 0xf4f6f8, transparent: true, opacity: 0.42, roughness: 0.2, side: THREE.DoubleSide, depthWrite: false }));
+    burbuja.position.set(tx, 1.15 + (H - 1.9) / 2, 0); g.add(burbuja);
+  }
+  const bx = L / 2 - L * 0.16;
+  caja(g, bx, 0, 0, L * 0.26, 1.4, B * 0.75, cuerpo);                      // bobinador
+  const rollo = cilindro(g, 0.32, B * 0.6, mat(0xf0efe9, { roughness: 0.4 }), 'z'); rollo.position.set(bx, 1.75, 0);
+  baliza(g, tx + s / 2, H, s / 2, estado);
+  return H;
+}
+function conversora(g, t, L, B, H, estado, cuerpo) {
+  H = Math.max(1.1, Math.min(H, 2.4));
+  caja(g, 0, 0, 0, L * 0.8, H, B * 0.62, cuerpo);
+  caja(g, 0, H, 0, L * 0.8, 0.06, B * 0.66, mat(0x2a2d31));
+  const r = Math.min(0.42, B * 0.22);
+  const rollo = cilindro(g, r, B * 0.6, mat(0xeeece6, { roughness: 0.4 }), 'z'); rollo.position.set(-L * 0.43, r + 0.35, 0);
+  caja(g, -L * 0.43, 0, 0, 0.12, r + 0.35, B * 0.7, mat(0x3a3e44));
+  if (t === 'Impresión' || t === 'Laminado') for (let i = 0; i < 4; i++) { const c = cilindro(g, 0.16, B * 0.6, mat(0xb8bec4, { metalness: 0.6, roughness: 0.3 }), 'z'); c.position.set(-L * 0.3 + i * L * 0.2, H + 0.25, 0); }
+  caja(g, L * 0.3, H * 0.35, B * 0.33, 0.45, 0.6, 0.12, mat(0x2a2d31));    // tablero
+  baliza(g, L * 0.37, H, -B * 0.25, estado);
+  return H + (t === 'Impresión' || t === 'Laminado' ? 0.5 : 0);
+}
+function rack(padre, p) {
+  const X = p.x * S, Z = p.y * S, W = p.w * S, D = p.d * S, H = p.h * S;
+  const bahias = Math.max(1, Math.round(p.w / 24)), bw = W / bahias, rnd = azar(Math.round(p.x * 7 + p.y));
+  for (let i = 0; i <= bahias; i++) for (const z of [Z + 0.05, Z + D - 0.05]) caja(padre, X + i * bw, 0, z, 0.09, H, 0.09, mat(0xe0751f));
+  const niveles = [0.12, H * 0.38, H * 0.72];
+  for (const y of niveles) for (const z of [Z + 0.05, Z + D - 0.05]) caja(padre, X + W / 2, y, z, W, 0.1, 0.07, mat(0x2856a8), false);
+  for (const y of niveles) for (let i = 0; i < bahias; i++) {
+    if (rnd() < 0.25) continue;
+    const cx = X + (i + 0.5) * bw;
+    caja(padre, cx, y + 0.1, Z + D / 2, bw * 0.8, 0.13, D * 0.9, mat(0xb98a52));
+    caja(padre, cx, y + 0.23, Z + D / 2, bw * 0.74, (H * 0.34 - 0.3) * (0.6 + rnd() * 0.4), D * 0.84, mat([0xe8e2d0, 0xd9c9a3, 0xc9d3db][Math.floor(rnd() * 3)]));
+  }
+}
+/** Operario: figura simple mientras carga su modelo (modelo de Blender posado "trabajando", mira a +z). */
+function persona(padre, x, z, mira, archivo, casco) {
+  const g = new THREE.Group(), prov = new THREE.Group();
+  const cuerpo = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 0.85, 4, 10), mat(0x2f4a6d)); cuerpo.position.y = 0.62; prov.add(cuerpo);
+  const cabeza = new THREE.Mesh(new THREE.SphereGeometry(0.13, 14, 10), mat(0xc49a74)); cabeza.position.y = 1.5; prov.add(cabeza);
+  const gorro = new THREE.Mesh(new THREE.SphereGeometry(0.145, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(casco)); gorro.position.y = 1.53; prov.add(gorro);
+  g.add(prov); g.position.set(x, 0, z); g.lookAt(mira.x, 0, mira.z);
+  padre.add(g);
+  return colocar(g, archivo, 0, 0, 0, 0, { ajustar: false }).then(m => { if (m) g.remove(prov); });
+}
+/** Dibujo provisorio + modelo: cuando el modelo carga, reemplaza al provisorio. */
+function conModelo(padre, sprite, cx, cz, W, D, provisorio, op) {
+  const prov = new THREE.Group(); padre.add(prov); provisorio(prov);
+  return colocar(padre, sprite, cx, cz, W, D, op).then(m => { if (m) { padre.remove(prov); liberar(prov); } return m; });
+}
+
+// --- Montacargas manejable y parihuelas que se pueden cargar -------------------
+// Medidas del .blend (blender/montacargas_modelo.py): horquillas hacia +x, mástil en
+// x = 0,92, carro porta horquillas desde x = 1,03, puntas a 2,21; eje delantero
+// (motriz) en x = 0,55 y trasero (direccional) en -0,70. El .glb viene centrado:
+// [dx] lo corre. En el .blend las horquillas quedaron a 0,34 m del piso; acá
+// [H] es la altura de la cara de abajo de las horquillas sobre el piso.
+const MC = { PUNTA: 2.21, EJE: 0.55, BASE: 1.25, H0: 0.3175, HMIN: 0.02, HMAX: 3.0, VEL_H: 0.45, VMAX: 3.2, VREV: 1.8, GIRO: 1.05, OJOS: 1.92, ASIENTO: -0.3 };
+let mc = null, conduciendo = false, parihuelas = [];
+/** Separa la malla del montacargas en chasis fijo, mástil interior (sube la mitad) y carro con horquillas. */
+function partirMontacargas(m, dx) {
+  const partes = { fijo: new THREE.Group(), interior: new THREE.Group(), carro: new THREE.Group() };
+  for (const me of m.obj.children) {
+    const pos = me.geometry.attributes.position, nor = me.geometry.attributes.normal, listas = { fijo: [], interior: [], carro: [] };
+    for (let t = 0; t < pos.count / 3; t++) {
+      let x0 = Infinity, z0 = Infinity, yMin = Infinity, yMax = -Infinity, cad = true, vas = true;
+      for (let k = 0; k < 3; k++) { // en coordenadas del .blend: bx adelante, by a la izquierda, bz arriba
+        const bx = pos.getX(t * 3 + k) - dx, by = Math.abs(pos.getZ(t * 3 + k)), bz = pos.getY(t * 3 + k);
+        x0 = Math.min(x0, bx); z0 = Math.min(z0, bz); yMin = Math.min(yMin, by); yMax = Math.max(yMax, by);
+        cad &&= Math.abs(by - 0.12) < 0.03; vas &&= by < 0.03 && bx > 0.87 && bx < 0.93;
+      }
+      const parte = x0 >= 1.02 ? 'carro'
+        : (x0 >= 0.94 && yMin >= 0.235 && yMax <= 0.325 && z0 >= 0.29) || (cad && x0 >= 0.88) || (vas && z0 > 1.88) ? 'interior' : 'fijo';
+      listas[parte].push(t);
+    }
+    for (const [k, ts] of Object.entries(listas)) {
+      if (!ts.length) continue;
+      const P = new Float32Array(ts.length * 9), N = new Float32Array(ts.length * 9);
+      ts.forEach((t, i) => { P.set(pos.array.subarray(t * 9, t * 9 + 9), i * 9); N.set(nor.array.subarray(t * 9, t * 9 + 9), i * 9); });
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(N, 3));
+      const parte = new THREE.Mesh(geo, me.material); parte.castShadow = !movil && me.castShadow; parte.receiveShadow = true;
+      partes[k].add(parte);
+    }
+  }
+  return partes;
+}
+// Huella para choques, en coordenadas del .blend: cuerpo y horquillas
+const perimetro = (x0, x1, y0, y1, paso = 0.3) => {
+  const pts = [], nx = Math.ceil((x1 - x0) / paso), ny = Math.ceil((y1 - y0) / paso);
+  for (let i = 0; i <= nx; i++) pts.push([x0 + (x1 - x0) * i / nx, y0], [x0 + (x1 - x0) * i / nx, y1]);
+  for (let i = 1; i < ny; i++) pts.push([x0, y0 + (y1 - y0) * i / ny], [x1, y0 + (y1 - y0) * i / ny]);
+  return pts;
+};
+const HUELLA_CUERPO = perimetro(-1.19, 1.0, -0.6, 0.6), HUELLA_HORQUILLAS = perimetro(1.1, 2.21, -0.36, 0.36);
+// Local del montacargas (x del .glb, z del .glb) <-> mundo
+const aMundo = (lx, lz, x = mc.x, z = mc.z, th = mc.th) => [x + lx * Math.cos(th) + lz * Math.sin(th), z - lx * Math.sin(th) + lz * Math.cos(th)];
+const aLocal = (wx, wz, x = mc.x, z = mc.z, th = mc.th) => { const a = wx - x, b = wz - z; return [a * Math.cos(th) - b * Math.sin(th), a * Math.sin(th) + b * Math.cos(th)]; };
+const deBlend = ([bx, by]) => [bx + mc.dx, -by];
+
+async function crearMontacargas(padre, x, z, giro) {
+  const m = await modelo('montacargas');
+  if (!m || !padre.parent) return;
+  const dx = m.caja.max.x - MC.PUNTA, g = new THREE.Group();
+  g.position.set(x, 0, z); g.rotation.y = giro; padre.add(g);
+  const partes = partirMontacargas(m, dx); g.add(partes.fijo, partes.interior, partes.carro);
+  const baliza = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.09, 14), new THREE.MeshStandardMaterial({ color: 0xffa21a, emissive: 0xff8a00, emissiveIntensity: 0.2 }));
+  baliza.position.set(-0.75 + dx, 2.31, -0.40); g.add(baliza);
+  mc = { g, partes, baliza, dx, x, z, th: giro, v: 0, giro: 0, H: MC.HMIN, carga: [], subiendo: 0 };
+  ponerHorquillas(); rehacerSombras();
+}
+function ponerHorquillas() {
+  const d = mc.H - MC.H0; // el carro sube todo, el mástil interior la mitad (mástil dúplex)
+  mc.partes.carro.position.y = d; mc.partes.interior.position.y = Math.max(0, mc.H - MC.HMIN) / 2;
+}
+
+function nuevaParihuela(padre, cx, cz, W, D, alto, color) {
+  const g = new THREE.Group(), prov = new THREE.Group();
+  g.position.set(cx, 0, cz); padre.add(g); g.add(prov);
+  caja(prov, 0, 0, 0, W, 0.14, D, mat(0xb98a52)); caja(prov, 0, 0.14, 0, W * 0.92, alto, D * 0.92, mat(color));
+  const pa = { g, x: cx, z: cz, rot: 0, y: 0, mx: W / 2, mz: D / 2, alto: 0.14 + alto };
+  colocar(g, 'parihuela', 0, 0, W, D).then(m => {
+    if (!m) return;
+    g.remove(prov); liberar(prov);
+    const b = new THREE.Box3().setFromObject(m.o);
+    pa.mx = (b.max.x - b.min.x) / 2; pa.mz = (b.max.z - b.min.z) / 2; pa.alto = m.alto;
+  });
+  return pa;
+}
+/** ¿El punto (x, z) del mundo cae dentro de la parihuela (más un margen)? */
+function enParihuela(pa, x, z, margen = 0) {
+  const a = x - pa.x, b = z - pa.z, c = Math.cos(pa.rot), s = Math.sin(pa.rot);
+  return Math.abs(a * c - b * s) < pa.mx + margen && Math.abs(a * s + b * c) < pa.mz + margen;
+}
+const cargada = pa => mc && mc.carga.some(c => c.pa === pa);
+function puntoLibre(x, z, parihuelasTambien, desde = 0) {
+  if (x < limites[0] || z < limites[1] || x > limites[2] || z > limites[3]) return false;
+  if (bloqueos.some(([x0, z0, x1, z1]) => x > x0 && x < x1 && z > z0 && z < z1)) return false;
+  return !parihuelasTambien || !parihuelas.some(pa => !cargada(pa) && pa.y + pa.alto > desde && enParihuela(pa, x, z));
+}
+/** ¿La pose (x, z, th) choca? El cuerpo choca con todo; las horquillas pasan bajo las parihuelas. */
+function mcChoca(x, z, th) {
+  const libreEn = (pts, conPar, desde = 0) => pts.every(p => { const [lx, lz] = deBlend(p), [wx, wz] = aMundo(lx, lz, x, z, th); return puntoLibre(wx, wz, conPar, desde); });
+  if (!libreEn(HUELLA_CUERPO, true) || !libreEn(HUELLA_HORQUILLAS, false)) return true;
+  for (const c of mc.carga) { // la carga ocupa su huella, por encima de lo que esté más bajo que ella
+    const pts = perimetro(-c.pa.mx, c.pa.mx, -c.pa.mz, c.pa.mz, 0.35).map(([a, b]) => {
+      const r = c.rot, lx = c.lx + a * Math.cos(r) + b * Math.sin(r), lz = c.lz - a * Math.sin(r) + b * Math.cos(r);
+      return aMundo(lx, lz, x, z, th);
+    });
+    if (!pts.every(([wx, wz]) => puntoLibre(wx, wz, true, c.pa.y + 0.02))) return true;
+  }
+  return false;
+}
+/** Parihuela alineada con las horquillas y a la altura de su abertura. */
+function parihuelaEnHorquillas() {
+  for (const pa of parihuelas) {
+    if (cargada(pa)) continue;
+    const [lx, lz] = aLocal(pa.x, pa.z), bx = lx - mc.dx, by = -lz;
+    let rel = ((pa.rot - mc.th) % (Math.PI / 2) + Math.PI / 2) % (Math.PI / 2); if (rel > Math.PI / 4) rel -= Math.PI / 2;
+    if (Math.abs(rel) > 0.26 || Math.abs(by) > 0.22) continue;
+    const vuelta = Math.round((pa.rot - mc.th) / (Math.PI / 2)), medio = Math.abs(vuelta) % 2 ? pa.mz : pa.mx;
+    if (bx - medio < 1.03 || bx - medio > 1.45) continue;
+    const fondo = mc.H + 0.045 - 0.11; // las horquillas tocan la tabla de arriba de la parihuela
+    if (fondo >= pa.y - 0.005 && fondo <= pa.y + 0.05) return pa;
+  }
+  return null;
+}
+function tomar(pa) {
+  // La parihuela y lo que tenga apilado encima
+  const pila = [pa];
+  for (let i = 0; i < pila.length; i++) for (const o of parihuelas) if (!pila.includes(o) && Math.hypot(o.x - pila[i].x, o.z - pila[i].z) < 0.4 && Math.abs(o.y - (pila[i].y + pila[i].alto)) < 0.08) pila.push(o);
+  for (const p of pila) { const [lx, lz] = aLocal(p.x, p.z); mc.carga.push({ pa: p, lx, lz, rot: p.rot - mc.th, dy: p.y - pa.y }); }
+}
+function apoyoBajo(c) {
+  let h = 0;
+  for (const o of parihuelas) if (!cargada(o) && Math.hypot(o.x - c.pa.x, o.z - c.pa.z) < Math.max(o.mx, o.mz)) h = Math.max(h, o.y + o.alto);
+  return h;
+}
+function moverCarga() {
+  const base = mc.H + 0.045 - 0.11;
+  for (const c of mc.carga) {
+    const [wx, wz] = aMundo(c.lx, c.lz);
+    Object.assign(c.pa, { x: wx, z: wz, rot: mc.th + c.rot, y: Math.max(0, base + c.dy) });
+    c.pa.g.position.set(wx, c.pa.y, wz); c.pa.g.rotation.y = c.pa.rot;
+  }
+}
+/** Un paso de manejo. acel y dir de -1 a 1 (dir > 0 gira a la izquierda), sube de -1 a 1. */
+function manejar(dt, acel, dir, sube) {
+  const obj = acel >= 0 ? acel * MC.VMAX : acel * MC.VREV;
+  const k = obj === 0 || Math.sign(obj) !== Math.sign(mc.v) && mc.v !== 0 ? 4.5 : 1.8; // frena más fuerte de lo que acelera
+  mc.v += Math.max(-k * dt, Math.min(k * dt, obj - mc.v));
+  if (Math.abs(mc.v) < 0.01 && obj === 0) mc.v = 0;
+  mc.giro += Math.max(-2.2 * dt, Math.min(2.2 * dt, dir * MC.GIRO - mc.giro));
+  let movio = false;
+  if (mc.v) {
+    // Dirección trasera: el eje delantero sigue su rumbo y la cola barre al girar
+    const ax = MC.EJE + mc.dx, [fx, fz] = aMundo(ax, 0), th = mc.th + mc.v * Math.tan(mc.giro) / MC.BASE * dt;
+    const thm = (mc.th + th) / 2, nfx = fx + Math.cos(thm) * mc.v * dt, nfz = fz - Math.sin(thm) * mc.v * dt;
+    const x = nfx - ax * Math.cos(th), z = nfz + ax * Math.sin(th);
+    if (mcChoca(x, z, th)) mc.v = 0;
+    else { yaw += th - mc.th; Object.assign(mc, { x, z, th }); movio = true; }
+  }
+  if (sube) {
+    let H = Math.max(MC.HMIN, Math.min(MC.HMAX, mc.H + sube * MC.VEL_H * dt));
+    if (!mc.carga.length && sube > 0) { const pa = parihuelaEnHorquillas(); if (pa) tomar(pa); }
+    if (mc.carga.length && sube < 0) {
+      const c0 = mc.carga[0], apoyo = apoyoBajo(c0);
+      if (H + 0.045 - 0.11 <= apoyo) { for (const c of mc.carga) c.pa.y = apoyo + c.dy; mc.carga.forEach(c => c.pa.g.position.y = c.pa.y); mc.carga = []; rehacerSombras(); }
+    }
+    movio ||= H !== mc.H; mc.H = H; ponerHorquillas();
+  }
+  mc.subiendo = sube && mc.H > MC.HMIN && mc.H < MC.HMAX ? sube : 0;
+  mc.g.position.set(mc.x, 0, mc.z); mc.g.rotation.y = mc.th;
+  if (mc.carga.length) moverCarga();
+  if (movio && !movil && cuadro % 4 === 0) rehacerSombras();
+}
+const asientoMundo = () => aMundo(MC.ASIENTO + mc.dx, 0);
+function cercaDelMontacargas() {
+  if (!mc || conduciendo || aerea || jugador.arriba) return false;
+  const [x, z] = asientoMundo(); return Math.hypot(x - jugador.x, z - jugador.z) < 2.3;
+}
+function subirBajar() {
+  if (conduciendo) {
+    // Bajar por el costado izquierdo, el derecho o por detrás: donde haya espacio
+    for (const [bx, by] of [[-0.2, 1.05], [-0.2, -1.05], [-1.7, 0], [0.4, 1.1], [0.4, -1.1]]) {
+      const [x, z] = aMundo(...deBlend([bx, by]));
+      conduciendo = false;
+      if (libre(x, z)) { jugador.x = x; jugador.z = z; mc.v = 0; rehacerSombras(); return; }
+      conduciendo = true;
+    }
+    return; // encajonado: no hay por dónde bajar
+  }
+  if (!cercaDelMontacargas()) return;
+  conduciendo = true; mc.v = 0; mc.giro = 0;
+  yaw = mc.th - Math.PI / 2; pitch = -0.12;
+}
+
+// --- Sonido: motor a gas, pito de retroceso e hidráulica ------------------------
+let audio = null;
+function iniciarAudio() {
+  if (audio) { audio.ctx.resume?.(); return; }
+  try {
+    const ctx = new AudioContext(), salida = ctx.createGain(); salida.gain.value = 0.6; salida.connect(ctx.destination);
+    const voz = (tipo, f, filtro) => {
+      const o = ctx.createOscillator(), g = ctx.createGain(); o.type = tipo; o.frequency.value = f; g.gain.value = 0;
+      if (filtro) { const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = filtro; o.connect(lp); lp.connect(g); } else o.connect(g);
+      g.connect(salida); o.start(); return { o, g };
+    };
+    audio = { ctx, motor: voz('sawtooth', 40, 260), pito: voz('square', 1150, 0), hidraulica: voz('triangle', 190, 900) };
+  } catch { audio = null; }
+}
+function sonar(ahora) {
+  if (!audio) return;
+  const t = audio.ctx.currentTime, activo = conduciendo && intro.hidden;
+  const v = mc ? Math.abs(mc.v) / MC.VMAX : 0;
+  audio.motor.g.gain.setTargetAtTime(activo ? 0.05 + v * 0.07 : 0, t, 0.15);
+  audio.motor.o.frequency.setTargetAtTime(38 + v * 30 + (mc?.subiendo ? 14 : 0), t, 0.2);
+  audio.pito.g.gain.setTargetAtTime(activo && mc.v < -0.05 && ahora % 900 < 450 ? 0.035 : 0, t, 0.01);
+  audio.hidraulica.g.gain.setTargetAtTime(activo && mc.subiendo ? 0.035 : 0, t, 0.05);
+}
+
+// --- Armar la escena de un plano ---------------------------------------------
+let mundo = null, techos = null, plano = null, bloqueos = [], maquinas = [], limites = null;
+// Los modelos clonados comparten geometría y materiales con su original: no se liberan.
+const compartidos = new WeakSet();
+function liberar(o) {
+  if (o.userData.compartido) return;
+  if (o.geometry && o.geometry !== geoCaja) o.geometry.dispose();
+  if (o.material && !compartidos.has(o.material) && ![...mats.values()].includes(o.material)) { o.material.map?.dispose(); o.material.dispose(); }
+  for (const h of o.children) liberar(h);
+}
+
+function armar(pl) {
+  if (mundo) { scene.remove(mundo); liberar(mundo); }
+  plano = pl; mundo = new THREE.Group(); scene.add(mundo); bloqueos = []; maquinas = [];
+  mc = null; conduciendo = false; parihuelas = [];
+  techos = new THREE.Group(); mundo.add(techos);
+  const rnd = azar(pl === PF ? 11 : 23);
+  const bloquear = (x, z, w, d) => bloqueos.push([x, z, x + w, z + d]);
+
+  // Pisos (de abajo hacia arriba)
+  for (const r of pl.pistas) piso(mundo, r, 0.004, matPiso(texAsfalto, r, { roughness: 0.95 }));
+  if (pl.ovalo) {
+    const [ox, oy, orad] = pl.ovalo;
+    const ov = new THREE.Mesh(new THREE.CircleGeometry(orad * S * 0.55, 40), mat(0x6f9a4f, { roughness: 1 }));
+    ov.rotation.x = -Math.PI / 2; ov.position.set(ox * S, 0.012, oy * S); ov.receiveShadow = true; mundo.add(ov);
+  }
+  for (const r of pl.veredas) piso(mundo, r, 0.008, matPiso(texVereda, r));
+  for (const poly of pl.jardines) {
+    const sh = new THREE.Shape(poly.map(([x, y]) => new THREE.Vector2(x * S, -y * S)));
+    const me = new THREE.Mesh(new THREE.ShapeGeometry(sh), mat(0x6f9a4f, { roughness: 1 }));
+    me.rotation.x = -Math.PI / 2; me.position.y = 0.01; me.receiveShadow = true; mundo.add(me);
+  }
+  piso(mundo, pl.sitio, 0.006, mat(0xc4b9a3, { roughness: 0.95 }));
+  for (const r of pl.sendas) piso(mundo, r, 0.012, mat(0xd2cdc3));
+  for (const r of pl.naves) piso(mundo, r, 0.014, matPiso(texConcreto, r, { roughness: 0.7 }));
+  for (const r of pl.oficinas) piso(mundo, r, 0.018, mat(0xd8d4cb, { roughness: 0.5 }));
+  for (const [r, n, c] of pl.zonas) zonaPiso(mundo, r, n, c);
+
+  // Muros perimetrales e interiores
+  const blanco = mat(0xe9e5dc, { roughness: 0.9 });
+  for (const [x0, y0, x1, y1] of pl.murosFondo) {
+    const x = Math.min(x0, x1) * S - 0.1, z = Math.min(y0, y1) * S - 0.1, w = Math.abs(x1 - x0) * S + 0.2, d = Math.abs(y1 - y0) * S + 0.2;
+    caja(mundo, x + w / 2, 0, z + d / 2, w, ALTO_MURO, d, mat(0xd9d2c3, { roughness: 0.95 })); bloquear(x, z, w, d);
+  }
+  for (const [r, h, c] of pl.edificios) {
+    const hm = h * S * 1.5 + 2.5;
+    caja(mundo, (r.x + r.w / 2) * S, 0, (r.y + r.d / 2) * S, r.w * S, hm, r.d * S, mat(c, { roughness: 0.95 })); bloquear(r.x * S, r.y * S, r.w * S, r.d * S);
+  }
+
+  // Naves con su estructura (los lados sin muro en el plano llevan muro de bloque)
+  const tramosMuro = [
+    ...pl.piezas.filter(p => p.t === 'muro').map(p => p.w >= p.d ? [true, (p.y + p.d / 2) * S, p.x * S, (p.x + p.w) * S] : [false, (p.x + p.w / 2) * S, p.y * S, (p.y + p.d) * S]),
+    ...pl.murosFondo.map(([x0, y0, x1, y1]) => y0 === y1 ? [true, y0 * S, Math.min(x0, x1) * S, Math.max(x0, x1) * S] : [false, x0 * S, Math.min(y0, y1) * S, Math.max(y0, y1) * S]),
+  ];
+  const cerramiento = new THREE.Group(); mundo.add(cerramiento);
+  // Lo que no se mueve ni se consulta (racks, parihuelas, escritorios, autos, personas): se fusiona al terminar de cargar
+  const muebles = new THREE.Group(); mundo.add(muebles);
+  // Lo que se mueve (montacargas y parihuelas): queda aparte, sin fusionar
+  const movibles = new THREE.Group(); mundo.add(movibles);
+  const pendientes = [], cargasMaquinas = [];
+  const naves = pl.naves.map((r, i) => datosNave(r, pl.techos[i]));
+  pl.naves.forEach((r, i) => armarNave(cerramiento, techos, r, pl.techos[i], tramosMuro, naves));
+  // Techo plano de las oficinas (las del comedor ya tienen losa)
+  for (const o of pl.oficinas) {
+    if (pl.comedor && dentro(pl.comedor.losa, (o.x + o.w / 2) * S, (o.y + o.d / 2) * S)) continue;
+    caja(techos, (o.x + o.w / 2) * S, ALTO_MURO, (o.y + o.d / 2) * S, o.w * S + 0.3, 0.15, o.d * S + 0.3, mat(0xcfcac0), false);
+  }
+
+  // Piezas
+  for (const p of pl.piezas) {
+    const X = p.x * S, Z = p.y * S, W = p.w * S, D = p.d * S, H = p.h * S, cx = X + W / 2, cz = Z + D / 2;
+    if (p.t !== 'auto' && p.t !== 'parihuela') bloquear(X, Z, W, D);
+    if (p.t === 'muro') { caja(mundo, cx, 0, cz, Math.max(W, 0.18), ALTO_MURO, Math.max(D, 0.18), blanco); continue; }
+    if (p.t === 'rack') { pendientes.push(conModelo(muebles, 'rack', cx, cz, W, D, g => rack(g, p))); continue; }
+    if (p.t === 'parihuela') {
+      const alto = (H - 0.14) * (0.5 + rnd() * 0.9), color = [0xe8e2d0, 0xf2f2ee, 0xd9c9a3][Math.floor(rnd() * 3)];
+      parihuelas.push(nuevaParihuela(movibles, cx, cz, W, D, alto, color));
+      continue;
+    }
+    if (p.t === 'mesa') {
+      caja(mundo, cx, 0.7, cz, W, 0.06, D, mat(0xaab2b9, { metalness: 0.5, roughness: 0.4 }));
+      caja(mundo, cx, 0, cz, W * 0.85, 0.7, D * 0.7, mat(0x5b636b, { metalness: 0.4 }));
+      continue;
+    }
+    if (p.t === 'escritorio') {
+      pendientes.push(conModelo(muebles, p.sprite || 'escritorio', cx, cz, W, D, g => {
+        caja(g, cx, 0, cz, W, 0.75, D, mat(0x8a6a4a, { roughness: 0.6 }));
+        caja(g, cx, 0.75, cz, 0.5, 0.35, 0.05, mat(0x1d1f22));
+      }));
+      continue;
+    }
+    if (p.t === 'auto') { // tamaño real, de trompa al muro norte del estacionamiento
+      const c = [0xb33a2e, 0x8c9399, 0xf2f2f0, 0x2b3f63, 0x1d1f22, 0x6f7a72][Math.floor(rnd() * 6)];
+      pendientes.push(conModelo(muebles, p.sprite || 'sedan', cx, cz, W, D, g => {
+        caja(g, cx, 0.25, cz, W * 0.95, 0.65, D * 0.95, mat(c, { metalness: 0.4, roughness: 0.35 }));
+      }, { giro: D > W ? Math.PI / 2 : 0, ajustar: false }).then(m => {
+        const b = m ? new THREE.Box3().setFromObject(m.o) : null;
+        if (b) bloqueos.push([b.min.x, b.min.z, b.max.x, b.max.z]); else bloquear(X, Z, W, D);
+      }));
+      continue;
+    }
+    if (!p.n) continue;
+    // Máquina: el grupo queda sin girar (el modelo viene en ejes del plano); el provisorio sí gira.
+    const r = rnd(), estado = r < 0.55 ? 'produciendo' : r < 0.7 ? 'asignada' : r < 0.8 ? 'pausa' : r < 0.9 ? 'apagada' : 'libre';
+    const g = new THREE.Group(), largoX = W >= D, L = Math.max(W, D), B = Math.min(W, D);
+    g.position.set(cx, 0, cz);
+    const cuerpo = mat(COLOR_TIPO[p.t] ?? 0x666b70, { roughness: 0.55, metalness: 0.25 });
+    let altoProv = 0;
+    const et = textoEtiqueta(p.n, estado);
+    g.add(et); g.userData = { p, estado };
+    mundo.add(g); maquinas.push(g);
+    const provisorio = q => {
+      const giro = new THREE.Group(); giro.rotation.y = (largoX ? 0 : -Math.PI / 2) + (p.sprite.includes('_180') ? Math.PI : 0); q.add(giro);
+      altoProv = p.t === 'Extrusión' ? extrusora(giro, L, B, H, estado, cuerpo) : conversora(giro, p.t, L, B, H, estado, cuerpo);
+    };
+    const andando = estado === 'produciendo' || estado === 'pausa';
+    if (p.sprite) {
+      // Tamaño real del modelo de Blender (m). El rect del plano 2D es más chico que varias máquinas:
+      // solo se achica lo que no quepa en su huella más HOLGURA (lo que había de pasillo alrededor).
+      cargasMaquinas.push(conModelo(g, p.sprite, 0, 0, W / 0.9 + HOLGURA, D / 0.9 + HOLGURA, provisorio).then(m => {
+        if (!m) return;
+        // Que no atraviese el muro de su nave: se corre hacia adentro
+        let b = new THREE.Box3().setFromObject(m.o);
+        const nv = pl.naves.find(r => dentro(r, cx, cz));
+        if (nv) {
+          const x0 = nv.x * S + 0.2, x1 = (nv.x + nv.w) * S - 0.2, z0 = nv.y * S + 0.2, z1 = (nv.y + nv.d) * S - 0.2;
+          m.o.position.x += Math.max(0, x0 - b.min.x) - Math.max(0, b.max.x - x1);
+          m.o.position.z += Math.max(0, z0 - b.min.z) - Math.max(0, b.max.z - z1);
+          b = new THREE.Box3().setFromObject(m.o);
+        }
+        bloqueos.push([b.min.x + 0.15, b.min.z + 0.15, b.max.x - 0.15, b.max.z - 0.15]);
+        et.position.y = m.alto + 0.9;
+        m.o.traverse(o => { if (o.isMesh && /^film/.test(o.name)) o.visible = andando; }); // burbuja y láminas solo andando
+        g.userData.caja = null; // se recalcula con el modelo
+      }));
+    } else { const q = new THREE.Group(); g.add(q); provisorio(q); }
+    et.position.set(0, altoProv + 1.1, 0);
+    // Operarios en las máquinas con lote activo
+    if (andando) {
+      const puestos = p.puntos.length ? p.puntos : [largoX ? [p.x + p.w * 0.5, p.y + p.d + 9] : [p.x + p.w + 9, p.y + p.d * 0.5]];
+      const n = Math.min(puestos.length, 1 + Math.floor(rnd() * 2));
+      for (let i = 0; i < n; i++) {
+        const ext = p.t === 'Extrusión', archivo = ext ? 'hombre_polo_azul' : rnd() < 0.5 ? 'mujer_polo_cofia' : 'hombre_polo_cofia';
+        pendientes.push(persona(muebles, puestos[i][0] * S, puestos[i][1] * S, g.position, archivo, ext ? 0x2f6fd6 : 0xf4f4f0));
+      }
+    }
+  }
+  // Montacargas: estacionado donde dice el plano, listo para manejar
+  for (const [x, y, giro] of (pl.montacargas || []).slice(0, 1)) pendientes.push(crearMontacargas(movibles, x * S, y * S, giro));
+
+  // Comedor del segundo piso, con escalera
+  const c = pl.comedor;
+  if (c) {
+    const L = c.losa, E = c.escalera, Ds = c.descanso, gris = mat(0xbdb7ab);
+    caja(mundo, (L.x + L.w / 2) * S, ALTO_MURO, (L.y + L.d / 2) * S, L.w * S, ALTO_PISO2 - ALTO_MURO, L.d * S, gris);
+    caja(mundo, (Ds.x + Ds.w / 2) * S, ALTO_MURO, (Ds.y + Ds.d / 2) * S, Ds.w * S, ALTO_PISO2 - ALTO_MURO, Ds.d * S, gris);
+    const pasos = 20;
+    for (let i = 0; i < pasos; i++) {
+      const z1 = (E.y + E.d) * S - (i + 1) * E.d * S / pasos;
+      caja(mundo, (E.x + E.w / 2) * S, 0, z1 + E.d * S / pasos / 2, E.w * S, ALTO_PISO2 * (i + 1) / pasos, E.d * S / pasos, gris);
+    }
+    const baranda = mat(0x3a3e44, { metalness: 0.5 }), y = ALTO_PISO2;
+    caja(mundo, (L.x + L.w / 2) * S, y, L.y * S, L.w * S, 1, 0.05, baranda);
+    caja(mundo, (L.x + L.w / 2) * S, y, (L.y + L.d) * S, L.w * S, 1, 0.05, baranda);
+    caja(mundo, (L.x + L.w) * S, y, (L.y + L.d / 2) * S, 0.05, 1, L.d * S, baranda);
+    caja(mundo, L.x * S, y, (Ds.y + Ds.d + (L.y + L.d - Ds.y - Ds.d) / 2) * S, 0.05, 1, (L.y + L.d - Ds.y - Ds.d) * S, baranda);
+    for (const m of c.mesas) caja(mundo, (m.x + m.w / 2) * S, y, (m.y + m.d / 2) * S, m.w * S, 0.75, m.d * S, mat(0x8a6a4a, { roughness: 0.6 }));
+  }
+
+  fusionar(techos); fusionar(cerramiento); fusionar(mundo, true);
+  // Al terminar de cargar: cajas de las máquinas (para saber cuál miras) y todo lo estático fusionado
+  Promise.all(pendientes.concat(cargasMaquinas)).then(() => {
+    if (!muebles.parent) return; // ya se cambió de planta
+    for (const g of maquinas) g.userData.caja = new THREE.Box3().setFromObject(g.children[1] ?? g);
+    fusionar(mundo, false, [techos, movibles]); rehacerSombras();
+  });
+
+  // Sol encuadrado sobre el terreno
+  const cx = (pl.sitio.x + pl.sitio.w / 2) * S, cz = (pl.sitio.y + pl.sitio.d / 2) * S, rad = Math.max(pl.sitio.w, pl.sitio.d) * S * 0.62;
+  sol.position.set(cx - 30, 70, cz - 40); sol.target.position.set(cx, 0, cz);
+  Object.assign(sol.shadow.camera, { left: -rad, right: rad, top: rad, bottom: -rad, near: 1, far: 220 }); sol.shadow.camera.updateProjectionMatrix();
+
+  const xs = [pl.sitio, ...pl.veredas, ...pl.pistas];
+  limites = [Math.min(...xs.map(r => r.x)) * S - 4, Math.min(...xs.map(r => r.y)) * S - 4, Math.max(...xs.map(r => r.x + r.w)) * S + 4, Math.max(...xs.map(r => r.y + r.d)) * S + 4];
+  jugador.x = pl.inicio[0] * S; jugador.z = pl.inicio[1] * S; jugador.y = 0; jugador.arriba = false;
+  yaw = pl.rumbo; pitch = 0; aerea = false;
+  document.getElementById('sede').textContent = pl.sede;
+  rehacerSombras();
+  dibujarMapa();
+}
+
+// --- Jugador y colisiones ---------------------------------------------------
+const jugador = { x: 0, z: 0, y: 0, arriba: false };
+let yaw = 0, pitch = 0, aerea = false;
+const dentro = (r, x, z, m = 0) => x >= r.x * S - m && x <= (r.x + r.w) * S + m && z >= r.y * S - m && z <= (r.y + r.d) * S + m;
+function rampa(x, z) { const E = plano.comedor.escalera; return ALTO_PISO2 * Math.min(1, Math.max(0, ((E.y + E.d) * S - z) / (E.d * S))); }
+function alturaEn(x, z, arriba) {
+  const c = plano.comedor; if (!c) return 0;
+  if (dentro(c.escalera, x, z)) return rampa(x, z);
+  if (arriba && (dentro(c.losa, x, z) || dentro(c.descanso, x, z))) return ALTO_PISO2;
+  return 0;
+}
+function libre(x, z) {
+  const c = plano.comedor;
+  if (jugador.arriba && c) return [c.losa, c.descanso, c.escalera].some(r => dentro(r, x, z, -0.05));
+  if (x < limites[0] || z < limites[1] || x > limites[2] || z > limites[3]) return false;
+  if (bloqueos.some(([x0, z0, x1, z1]) => x > x0 - CAPA && x < x1 + CAPA && z > z0 - CAPA && z < z1 + CAPA)) return false;
+  if (parihuelas.some(pa => pa.y < OJOS && enParihuela(pa, x, z, CAPA))) return false;
+  if (mc && !conduciendo) {
+    const [lx, lz] = aLocal(x, z), bx = lx - mc.dx, by = Math.abs(lz);
+    if (bx > -1.19 - CAPA && bx < 1.0 + CAPA && by < 0.6 + CAPA) return false;
+    if (mc.H < OJOS && bx >= 1.0 && bx < 2.21 + CAPA && by < 0.36 + CAPA) return false;
+  }
+  return true;
+}
+function mover(dx, dz) {
+  if (libre(jugador.x + dx, jugador.z)) jugador.x += dx;
+  if (libre(jugador.x, jugador.z + dz)) jugador.z += dz;
+  const c = plano.comedor;
+  if (c && dentro(c.escalera, jugador.x, jugador.z)) jugador.arriba = rampa(jugador.x, jugador.z) > ALTO_PISO2 / 2;
+}
+
+// --- Entrada -----------------------------------------------------------------
+const teclas = new Set();
+addEventListener('keydown', e => {
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
+  teclas.add(e.code);
+  if (e.code === 'KeyV') aerea = !aerea;
+  if (e.code === 'KeyE' && !e.repeat && intro.hidden) { iniciarAudio(); subirBajar(); }
+  if (e.code === 'Digit1') elegir(0);
+  if (e.code === 'Digit2') elegir(1);
+});
+addEventListener('keyup', e => teclas.delete(e.code));
+addEventListener('blur', () => teclas.clear());
+const mirar = (mx, my, k = 0.0022) => { yaw -= mx * k; pitch = Math.max(-1.45, Math.min(1.45, pitch - my * k)); };
+document.addEventListener('mousemove', e => {
+  if (document.pointerLockElement === canvas || (e.buttons & 1 && !movil)) mirar(e.movementX, e.movementY);
+});
+const intro = document.getElementById('intro');
+document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement !== canvas && !movil) intro.hidden = false; });
+
+// Táctil: mitad izquierda joystick, mitad derecha mirar
+const joy = document.getElementById('joy'), perilla = joy.querySelector('b');
+let toqueMover = null, toqueMirar = null, joyVec = [0, 0];
+canvas.addEventListener('touchstart', e => {
+  for (const t of e.changedTouches) {
+    if (t.clientX < innerWidth / 2 && !toqueMover) { toqueMover = { id: t.identifier, x: t.clientX, y: t.clientY }; joy.hidden = false; joy.style.left = t.clientX + 'px'; joy.style.top = t.clientY + 'px'; }
+    else if (!toqueMirar) toqueMirar = { id: t.identifier, x: t.clientX, y: t.clientY };
+  }
+}, { passive: true });
+canvas.addEventListener('touchmove', e => {
+  for (const t of e.changedTouches) {
+    if (toqueMover && t.identifier === toqueMover.id) {
+      let dx = t.clientX - toqueMover.x, dy = t.clientY - toqueMover.y; const l = Math.hypot(dx, dy), max = 50;
+      if (l > max) { dx *= max / l; dy *= max / l; }
+      joyVec = [dx / max, dy / max]; perilla.style.transform = `translate(${dx}px, ${dy}px)`;
+    } else if (toqueMirar && t.identifier === toqueMirar.id) {
+      mirar(t.clientX - toqueMirar.x, t.clientY - toqueMirar.y, 0.005); toqueMirar.x = t.clientX; toqueMirar.y = t.clientY;
+    }
+  }
+}, { passive: true });
+const finToque = e => {
+  for (const t of e.changedTouches) {
+    if (toqueMover && t.identifier === toqueMover.id) { toqueMover = null; joyVec = [0, 0]; joy.hidden = true; perilla.style.transform = ''; }
+    if (toqueMirar && t.identifier === toqueMirar.id) toqueMirar = null;
+  }
+};
+canvas.addEventListener('touchend', finToque); canvas.addEventListener('touchcancel', finToque);
+
+// Botones del montacargas (táctil; con teclado también se pueden usar con el mouse)
+const botonesMc = document.getElementById('botonesMc'), bMc = document.getElementById('bMc'), bSube = document.getElementById('bSube'), bBaja = document.getElementById('bBaja');
+let subeToque = 0;
+bMc.addEventListener('click', () => { iniciarAudio(); subirBajar(); });
+for (const [b, v] of [[bSube, 1], [bBaja, -1]]) {
+  b.addEventListener('pointerdown', e => { e.preventDefault(); subeToque = v; b.setPointerCapture?.(e.pointerId); });
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) b.addEventListener(ev, () => { if (subeToque === v) subeToque = 0; });
+}
+
+// --- Intro ---------------------------------------------------------------
+let sedeElegida = 0;
+function elegir(i) {
+  sedeElegida = i;
+  document.getElementById('s0').setAttribute('aria-pressed', i === 0);
+  document.getElementById('s1').setAttribute('aria-pressed', i === 1);
+  armar(PLANOS[i]);
+}
+document.getElementById('s0').onclick = () => elegir(0);
+document.getElementById('s1').onclick = () => elegir(1);
+document.getElementById('ctlPc').hidden = movil;
+document.getElementById('ctlTouch').hidden = !movil;
+document.getElementById('ayuda').hidden = movil;
+document.getElementById('entrar').onclick = () => {
+  intro.hidden = true; iniciarAudio();
+  if (!movil) { try { const r = canvas.requestPointerLock(); r?.catch?.(() => {}); } catch { /* sin bloqueo: arrastrar con el mouse */ } }
+};
+canvas.addEventListener('click', () => { if (!movil && intro.hidden && document.pointerLockElement !== canvas) { try { canvas.requestPointerLock()?.catch?.(() => {}); } catch {} } });
+
+// --- Minimapa -------------------------------------------------------------------
+const mini = document.getElementById('mini'), mg = mini.getContext('2d');
+let mapaFondo = null, mapaEsc = 1, mapaOrg = [0, 0];
+function dibujarMapa() {
+  const pl = plano, r = pl.sitio, lado = movil ? 120 : 180;
+  mapaEsc = lado / Math.max(r.w, r.d); mapaOrg = [r.x, r.y];
+  const dpr = devicePixelRatio || 1;
+  mini.width = Math.round(r.w * mapaEsc * dpr); mini.height = Math.round(r.d * mapaEsc * dpr);
+  mini.style.width = r.w * mapaEsc + 'px'; mini.style.height = r.d * mapaEsc + 'px';
+  const off = document.createElement('canvas'); off.width = mini.width; off.height = mini.height;
+  const g = off.getContext('2d'); g.scale(dpr * mapaEsc, dpr * mapaEsc); g.translate(-r.x, -r.y);
+  g.fillStyle = '#3a3a36'; g.fillRect(r.x, r.y, r.w, r.d);
+  g.fillStyle = '#55554f'; for (const n of pl.naves) g.fillRect(n.x, n.y, n.w, n.d);
+  g.fillStyle = '#6b6a63'; for (const o of pl.oficinas) g.fillRect(o.x, o.y, o.w, o.d);
+  for (const p of pl.piezas) {
+    if (p.t === 'parihuela') continue; // se dibujan en vivo (se pueden mover)
+    g.fillStyle = p.t === 'muro' ? '#e9e5dc' : p.n ? hex(COLOR_TIPO[p.t] ?? 0x888888) : '#8a8478';
+    g.fillRect(p.x, p.y, Math.max(p.w, 3), Math.max(p.d, 3));
+  }
+  g.fillStyle = '#e9e5dc'; for (const [x0, y0, x1, y1] of pl.murosFondo) g.fillRect(Math.min(x0, x1) - 2, Math.min(y0, y1) - 2, Math.abs(x1 - x0) + 4, Math.abs(y1 - y0) + 4);
+  mapaFondo = off;
+}
+function pintarMapa() {
+  const dpr = devicePixelRatio || 1;
+  mg.setTransform(1, 0, 0, 1, 0, 0); mg.drawImage(mapaFondo, 0, 0);
+  const enMapa = (x, z, rot, w, d, color) => {
+    mg.setTransform(1, 0, 0, 1, (x / S - mapaOrg[0]) * mapaEsc * dpr, (z / S - mapaOrg[1]) * mapaEsc * dpr); mg.rotate(-rot);
+    const k = mapaEsc * dpr / S; mg.fillStyle = color; mg.fillRect(-w * k / 2, -d * k / 2, w * k, d * k);
+  };
+  for (const pa of parihuelas) enMapa(pa.x, pa.z, pa.rot, Math.max(pa.mx * 2, 0.9), Math.max(pa.mz * 2, 0.9), '#b98a52');
+  if (mc) enMapa(...aMundo(0.51 + mc.dx, 0), mc.th, 3.4, 1.2, '#f08a1c');
+  mg.setTransform(1, 0, 0, 1, 0, 0);
+  const px = (jugador.x / S - mapaOrg[0]) * mapaEsc * dpr, py = (jugador.z / S - mapaOrg[1]) * mapaEsc * dpr;
+  mg.translate(px, py); mg.rotate(-yaw);
+  mg.fillStyle = '#e3b53b'; mg.strokeStyle = '#15181c'; mg.lineWidth = 1.5 * dpr;
+  mg.beginPath(); mg.moveTo(0, -8 * dpr); mg.lineTo(5 * dpr, 6 * dpr); mg.lineTo(0, 3 * dpr); mg.lineTo(-5 * dpr, 6 * dpr); mg.closePath(); mg.fill(); mg.stroke();
+}
+
+// --- Bucle --------------------------------------------------------------------
+const ficha = document.getElementById('ficha'), zonaEl = document.getElementById('zona');
+const ray = new THREE.Raycaster(); ray.far = 30;
+let previo = performance.now(), cuadro = 0, fichaDe = null, zonaPrevia = '';
+function redimensionar() {
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+}
+addEventListener('resize', redimensionar);
+
+// Aviso del montacargas: cómo subir, y ya manejando velocidad, horquillas y carga
+const accion = document.getElementById('accion');
+let accionPrevia = '';
+function pintarAccion() {
+  const cerca = cercaDelMontacargas() && intro.hidden;
+  let html = '';
+  if (conduciendo && !aerea) {
+    const n = mc.carga.length, carga = n ? ` · <b>${n === 1 ? 'parihuela' : n + ' parihuelas'}</b>` : '';
+    html = `<b>Montacargas</b> · ${Math.round(Math.abs(mc.v) * 3.6)} km/h${mc.v < -0.05 ? ' (retroceso)' : ''} · horquillas ${mc.H.toFixed(2).replace('.', ',')} m${carga}`
+      + (movil ? '' : `<br><kbd>W</kbd><kbd>S</kbd> avanzar/retroceder · <kbd>A</kbd><kbd>D</kbd> girar · <kbd>R</kbd><kbd>F</kbd> horquillas · <kbd>E</kbd> bajar`);
+  } else if (cerca) html = movil ? 'Montacargas' : '<kbd>E</kbd> subir al montacargas';
+  if (html !== accionPrevia) { accionPrevia = html; accion.innerHTML = html; accion.hidden = !html; }
+  botonesMc.hidden = !movil || !(cerca || conduciendo && !aerea);
+  bMc.textContent = conduciendo ? 'Bajar' : 'Subir al montacargas';
+  bSube.hidden = bBaja.hidden = !conduciendo;
+}
+
+function zonaActual() {
+  if (conduciendo) return 'MONTACARGAS · ' + (zonaSinMc() || '');
+  return zonaSinMc();
+}
+function zonaSinMc() {
+  if (jugador.arriba) return 'COMEDOR · SEGUNDO PISO';
+  let mejor = null;
+  for (const [r, n] of plano.zonas) if (dentro(r, jugador.x, jugador.z) && (!mejor || r.w * r.d < mejor[0])) mejor = [r.w * r.d, n];
+  if (mejor) return mejor[1];
+  if (plano.naves.some(r => dentro(r, jugador.x, jugador.z))) return 'NAVE DE PRODUCCIÓN';
+  if (dentro(plano.sitio, jugador.x, jugador.z)) return 'PATIO';
+  return 'FUERA DE LA PLANTA';
+}
+
+const fpsEl = document.getElementById('fps');
+let cuadrosFps = 0, inicioFps = performance.now();
+function bucle(ahora) {
+  const dt = Math.min(0.05, (ahora - previo) / 1000); previo = ahora;
+  let fx = 0, fz = 0;
+  if (teclas.has('KeyW') || teclas.has('ArrowUp')) fz += 1;
+  if (teclas.has('KeyS') || teclas.has('ArrowDown')) fz -= 1;
+  if (teclas.has('KeyD') || teclas.has('ArrowRight')) fx += 1;
+  if (teclas.has('KeyA') || teclas.has('ArrowLeft')) fx -= 1;
+  fx += joyVec[0]; fz -= joyVec[1];
+  const l = conduciendo ? 0 : Math.hypot(fx, fz);
+  if (mc) {
+    const activo = conduciendo && intro.hidden && !aerea;
+    const sube = activo ? (teclas.has('KeyR') || teclas.has('PageUp') ? 1 : 0) - (teclas.has('KeyF') || teclas.has('PageDown') ? 1 : 0) + subeToque : 0;
+    manejar(dt, activo ? Math.max(-1, Math.min(1, fz)) : 0, activo ? -Math.max(-1, Math.min(1, fx)) : 0, Math.max(-1, Math.min(1, sube)));
+    if (conduciendo) [jugador.x, jugador.z] = asientoMundo(); // la zona, el minimapa y los letreros siguen al montacargas
+    mc.baliza.material.emissiveIntensity = conduciendo && Math.floor(ahora / 350) % 2 ? 2.4 : 0.2;
+  }
+  sonar(ahora);
+  if (l > 0 && intro.hidden && !aerea) {
+    const n = Math.min(1, l) / l, vel = (teclas.has('ShiftLeft') || teclas.has('ShiftRight') || Math.hypot(...joyVec) > 0.95 ? 6.5 : 2.8) * dt;
+    const sx = Math.sin(yaw), cz = Math.cos(yaw);
+    mover((-sx * fz + cz * fx) * n * vel, (-cz * fz - sx * fx) * n * vel);
+  }
+  const objetivo = alturaEn(jugador.x, jugador.z, jugador.arriba);
+  jugador.y += (objetivo - jugador.y) * Math.min(1, dt * 12);
+  techos.visible = !aerea;
+  if (aerea) {
+    const r = plano.sitio;
+    camera.position.set((r.x + r.w / 2) * S, Math.max(r.w, r.d) * S * 1.05, (r.y + r.d * 0.85) * S + 18);
+    camera.rotation.set(-1.15, 0, 0);
+  } else if (conduciendo) {
+    const [x, z] = asientoMundo(); // sentado: el motor vibra un poco
+    camera.position.set(x, MC.OJOS + Math.sin(ahora / 37) * (0.002 + Math.abs(mc.v) * 0.002), z);
+    camera.rotation.set(pitch, yaw, 0);
+  } else {
+    camera.position.set(jugador.x, jugador.y + OJOS + (l > 0 && intro.hidden ? Math.sin(ahora / 140) * 0.025 : 0), jugador.z);
+    camera.rotation.set(pitch, yaw, 0);
+  }
+  if (++cuadro % 6 === 0) {
+    let info = null;
+    if (!aerea) {
+      // Contra la caja de cada máquina (no contra sus miles de triángulos)
+      ray.setFromCamera({ x: 0, y: 0 }, camera);
+      let mejor = ray.far;
+      for (const g of maquinas) {
+        const caja = g.userData.caja ??= new THREE.Box3().setFromObject(g.children[1] ?? g);
+        if (caja.isEmpty()) continue;
+        const p = ray.ray.intersectBox(caja, new THREE.Vector3());
+        const d = p ? p.distanceTo(camera.position) : Infinity;
+        if (d < mejor) { mejor = d; info = g.userData; }
+      }
+    }
+    if (info !== fichaDe) {
+      fichaDe = info; ficha.hidden = !info;
+      if (info) {
+        const e = ESTADOS[info.estado];
+        ficha.innerHTML = `<div class="nombre"></div><div class="fila"><span class="chip"><i style="background:${hex(e.color)}"></i>${e.texto}</span><span>${info.p.t}</span><span>· estado de ejemplo</span></div>`;
+        ficha.querySelector('.nombre').textContent = info.p.n;
+      }
+    }
+    const z = zonaActual(); if (z !== zonaPrevia) { zonaPrevia = z; zonaEl.textContent = z; }
+    pintarAccion();
+  }
+  // Letreros: se ocultan de muy cerca (taparían la máquina que estás mirando)
+  for (const g of maquinas) { const et = g.children[0]; if (et?.userData.etiqueta) et.visible = aerea || Math.hypot(g.position.x - jugador.x, g.position.z - jugador.z) > 4; }
+  pintarMapa();
+  renderer.render(scene, camera);
+  cuadrosFps++; if (ahora - inicioFps > 1000) { fpsEl.textContent = Math.round(cuadrosFps * 1000 / (ahora - inicioFps)) + ' fps'; cuadrosFps = 0; inicioFps = ahora; }
+  requestAnimationFrame(bucle);
+}
+
+// Para probar desde la consola: recorrido.ir(x, z, rumbo) en metros
+window.recorrido = { get mc() { return mc; }, get conduciendo() { return conduciendo; }, get parihuelas() { return parihuelas; }, subirBajar, manejar, jugador, teclas, ir(x, z, r = yaw, p = 0) { jugador.x = x; jugador.z = z; yaw = r; pitch = p; intro.hidden = true; }, aerea(v) { aerea = v; intro.hidden = true; }, carga, scene, renderer, camera, ray, get mundo() { return mundo; } };
+redimensionar();
+document.fonts?.ready.finally(() => { elegir(0); requestAnimationFrame(bucle); }) ?? (elegir(0), requestAnimationFrame(bucle));
+</script>
+
+</body></html>

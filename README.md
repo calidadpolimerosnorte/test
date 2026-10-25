@@ -31,6 +31,14 @@ Modelo procedural en Blender de la línea de extrusión de película soplada (bl
 - `blender/extrusora.blend` – escena guardada, lista para abrir en Blender 4.2+ / 5.x.
 - `renders/extrusora_principal.png`, `renders/extrusora_frontal.png`, `renders/extrusora_lateral.png` – renders finales.
 
+## Recorrido 3D en el navegador (`recorrido/`)
+
+- `recorrido/index.html` – vista en primera persona de Piura Futura y Planta 1 (three.js), publicada como artifact. Los modelos de Blender exportados están en `recorrido/modelos/*.glb.wasm` (son .glb; la extensión es por el hosting).
+- Vista a **1,70 m** del piso. Las máquinas van a **tamaño real** del modelo de Blender: solo se achican si no caben en su huella del plano 2D más 1 m de holgura, y se corren hacia adentro si atraviesan el muro de la nave.
+- **Montacargas manejable**: <kbd>E</kbd> subir/bajar, <kbd>W</kbd>/<kbd>S</kbd> avanzar y retroceder, <kbd>A</kbd>/<kbd>D</kbd> girar (dirección trasera, como uno real), <kbd>R</kbd>/<kbd>F</kbd> horquillas (mástil dúplex, hasta 3 m). Para cargar una parihuela se le meten las horquillas abajo y se suben; se dejan bajando hasta el piso o encima de otra parihuela. Choca con muros, máquinas y parihuelas. En táctil: botones «Subir», ▲ y ▼.
+- Pisos con textura (concreto con juntas cada 6 m, asfalto, vereda) y sonido del motor, pito de retroceso e hidráulica.
+- Pendiente: pasar las cotas del plano `PLANO POLIMEROS DEL NORTE.dwg` (subirlo al repo, de preferencia también como DXF).
+
 ## Qué está modelado
 
 - Torre blanca con 4 columnas, plataforma con barandas negras, letreros "EXTRUSORA Nº 1" y "UTILIZAR CASCO".
