@@ -38,7 +38,12 @@ Modelo procedural en Blender de la línea de extrusión de película soplada (bl
 - **Montacargas manejable**: <kbd>E</kbd> subir/bajar, <kbd>W</kbd>/<kbd>S</kbd> avanzar y retroceder, <kbd>A</kbd>/<kbd>D</kbd> girar (dirección trasera, como uno real), <kbd>R</kbd>/<kbd>F</kbd> horquillas (mástil dúplex, hasta 3,6 m). Para cargar una parihuela se le meten las horquillas abajo y se suben; se dejan bajando hasta el piso, sobre otra parihuela o en un nivel del rack. Choca con muros, máquinas y parihuelas. En táctil: botones «Subir», ▲ y ▼.
 - Pisos con textura (concreto con juntas cada 6 m, asfalto, vereda) y sonido del motor, pito de retroceso e hidráulica.
 - **Piura Futura sale del plano a escala** `planos/PLANO POLIMEROS DEL NORTE.zip` (DXF en metros): cerco, naves y ejes de tijerales, muros de concreto, termopanel y drywall con sus vanos y portones enrollables, columnas, cuartos de laminado/laboratorio (h = 4,2 m) e impresión (h = 5,0 m) con cielo raso, máquinas en su posición y medida (cada modelo se ajusta a su huella del DXF con 0,6 m de tolerancia; largo y fondo por separado, la altura sigue al largo), racks del almacén (3 filas de 3 cuerpos, niveles a 1,55 y 3,10 m), parihuelas, mesas de envasado, escritorios y autos. Planta 1 sigue con el plano 2D aproximado.
-- `recorrido/dxf/`: scripts con los que se leyó el DXF (`dxf_capas.py` lista capas y rects, `dxf_muros.py` genera `MUROS_PF` y `COLUMNAS_PF`, `dxf_dibujo.py` dibuja el plano: `renders/plano_dxf_piura_futura.png`). Requieren `pip install ezdxf pillow`.
+- **Segundos pisos caminables** del plano: oficinas sobre laminado/laboratorio (+4,30, escalera de 22 peldaños y pasarela), módulo de oficinas (+2,85, escalera en U) y comedor sobre SS.HH. (+3,35).
+- **Mobiliario por capa** del DXF (sillas, casilleros, bancas, mesas, estantes, cocina, refrigerador, sanitarios, duchas, tableros, desinfección), puertas abiertas en sus vanos y ventanas.
+- **Plano eléctrico**: 125 luminarias con su circuito y los interruptores del plano (<kbd>E</kbd> junto a uno); <kbd>N</kbd> turno de noche.
+- **Gente**: operadores animados en las máquinas en marcha y caminantes con rutas A*; rodillos que giran y balizas que muestran el estado de cada máquina.
+- **Choques** con una grilla de 10 cm y 96 franjas de altura hecha con la geometría real; resolución adaptable para sostener 60 fps.
+- `recorrido/dxf/`: scripts con los que se leyó el DXF (`dxf_muebles.py` mobiliario y muros de 2.º piso, `dxf_luces.py` luminarias e interruptores); (`dxf_capas.py` lista capas y rects, `dxf_muros.py` genera `MUROS_PF` y `COLUMNAS_PF`, `dxf_dibujo.py` dibuja el plano: `renders/plano_dxf_piura_futura.png`). Requieren `pip install ezdxf pillow`.
 
 ## Qué está modelado
 
