@@ -12,10 +12,12 @@ codigos = [(e.plain_text().strip(), pt(e)) for e in capa('60_ELECTRICO_CODIGO_LU
 circulos = [pt(e) for e in capa('60_ELECTRICO_INTERRUPTOR_LUMINARIA') if e.dxftype() == 'CIRCLE']
 textos = [(e.plain_text().strip(), pt(e)) for e in capa('60_ELECTRICO_INTERRUPTOR_LUMINARIA') if e.dxftype() == 'MTEXT']
 d = lambda a, b: math.hypot(a.x - b.x, a.y - b.y)
-# Segundo piso (comedor): dibujado 8,83 m más arriba que el primero
-PISO2 = 8.83
+# Segundos pisos dibujados aparte (como en dxf_muebles.py): salida [x, y, altura del piso]
+PISOS = [((34, 61.5, 46, 71), (0, -8.83), 3.35), ((58, 19, 71.5, 28.5), (-31.49, -0.13), 4.3), ((-7, 41, -1.5, 53.5), (9.87, 0), 2.85)]
 def ubicar(p):
-    return (round(p.x, 2), round(p.y - PISO2, 2), 2) if p.y > 62 else (round(p.x, 2), round(p.y, 2), 1)
+    for (a0, b0, a1, b1), (dx, dy), h in PISOS:
+        if a0 <= p.x <= a1 and b0 <= p.y <= b1: return (round(p.x + dx, 2), round(p.y + dy, 2), h)
+    return (round(p.x, 2), round(p.y, 2), 0)
 L = []
 for nombre, p in lamparas:
     c = min(codigos, key=lambda c: d(c[1], p))

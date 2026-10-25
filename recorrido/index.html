@@ -72,7 +72,7 @@ button:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 <div class="hud" id="mapa"><canvas id="mini"></canvas></div>
 <div class="hud" id="mira"></div>
 <div class="hud" id="ficha" hidden></div>
-<div class="hud" id="ayuda"><kbd>WASD</kbd> mover · <kbd>Shift</kbd> correr · <kbd>E</kbd> montacargas · <kbd>V</kbd> vista aérea · <kbd>1</kbd>/<kbd>2</kbd> planta · <kbd>Esc</kbd> pausa</div>
+<div class="hud" id="ayuda"><kbd>WASD</kbd> mover · <kbd>Shift</kbd> correr · <kbd>E</kbd> montacargas / interruptor · <kbd>N</kbd> noche · <kbd>V</kbd> vista aérea · <kbd>1</kbd>/<kbd>2</kbd> planta · <kbd>Esc</kbd> pausa</div>
 <div class="hud" id="accion" hidden></div>
 <div class="botones" id="botonesMc" hidden>
   <button type="button" id="bSube" hidden aria-label="Subir horquillas">▲</button>
@@ -101,6 +101,8 @@ button:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
       <kbd>E</kbd><span>Subir y bajar del montacargas (cerca de él)</span>
       <kbd>W S · A D</kbd><span>En el montacargas: avanzar, retroceder y girar</span>
       <kbd>R · F</kbd><span>Subir y bajar las horquillas (métele las horquillas a una parihuela y súbelas para cargarla)</span>
+      <kbd>E</kbd><span>Junto a un interruptor: prender o apagar sus circuitos (como en el plano eléctrico)</span>
+      <kbd>N</kbd><span>Turno de noche: solo alumbran las luminarias</span>
       <kbd>V</kbd><span>Vista aérea y de vuelta</span>
       <kbd>Esc</kbd><span>Pausa</span>
     </div>
@@ -189,7 +191,8 @@ const PF = {
   // Barandas [x0, y0, x1, y1, altura del piso] y muro entre los tramos de la escalera del módulo
   barandas: [[24.37, 23.58, 24.37, 30.05, 4.3], [24.37, 23.58, 27.27, 23.58, 4.3], [24.37, 30.05, 24.57, 30.05, 4.3], [26.37, 30.05, 27.27, 30.05, 4.3],
     [8.24, 52.96, 8.24, 54.11, 2.85], [5.93, 54.11, 8.24, 54.11, 2.85], [33.97, 59.94, 33.97, 60.85, 3.35]],
-  vanos: [[24.37, 27.59, 26.98, 27.59, 4.15, 6.13]], // [x0, y0, x1, y1, desde, hasta] en el cerramiento de calaminón
+  vanos: [[24.37, 27.59, 26.98, 27.59, 4.15, 6.13]],
+  muebles: MUEBLES_PF, luces: LUCES_PF, interruptores: INTERRUPTORES_PF, // [x0, y0, x1, y1, desde, hasta] en el cerramiento de calaminón
   muros2: [...MUROS2_PF, [3.93, 54.11, 8.24, 54.16, 0, 3.85]],
   montacargas: [[du(36), dv(41.5), 0]],
   oficinas: [rr(oPF, 35, 495, 140, 730), rr(oPF, 235, 150, 275, 190)], // el módulo y los SS.HH. tienen losa (2.º piso)
@@ -229,9 +232,11 @@ const PF = {
     pd('', 'equipo', [49.11, 28.03, 50.11, 28.53], 1.5, { color: 0x3b7be8 }),
     ...[[3.99, 2.04, 4.9, 2.48], [2.99, 9.96, 3.28, 10.87], [2.99, 18.75, 3.28, 19.67], [2.99, 23.91, 3.43, 24.82], [19.82, 27.0, 20.57, 27.44], [22.23, 27.0, 22.98, 27.44]]
       .map(r => pd('', 'equipo', r, 1.9, { color: 0xd9d6cf })), // tableros eléctricos de las extrusoras
+    // Bandejas portacables (60_ELECTRICO_BANDEJA_CABLEADO) a lo largo de los muros de producción, a +3,0 m
+    ...[[3.76, 2.64, 26.69, 2.94], [27.04, 2.64, 49.96, 2.94], [3.76, 26.69, 26.69, 26.99], [27.04, 26.69, 49.96, 26.99]].map(r => pd('', 'bandeja', r, 0.1)),
     // Mesas de envasado y la mesa del laboratorio
     ...[[40.03, 10.83, 42.28, 11.98], [43.06, 10.85, 45.31, 12.0], [27.38, 11.47, 29.63, 12.62], [31.11, 11.47, 33.36, 12.62], [34.63, 11.47, 36.88, 12.62],
-      [33.35, 15.84, 35.6, 16.99], [36.66, 15.85, 38.91, 17.0], [45.76, 26.74, 47.67, 27.31], [47.77, 26.74, 49.67, 27.31], [27.37, 20.8, 33.04, 21.66]].map(r => pd('', 'mesa', r, 0.9)),
+      [33.35, 15.84, 35.6, 16.99], [36.66, 15.85, 38.91, 17.0], [45.76, 26.74, 47.67, 27.31], [47.77, 26.74, 49.67, 27.31]].map(r => pd('', 'mesa', r, 0.9)),
     // Racks selectivos del almacén: 3 filas de 3 cuerpos de 2,60 m, con parihuelas de 1,20 × 1,00
     ...[[41.8, 37.74, 49.8, 38.79], [41.8, 38.89, 49.8, 39.94], [41.8, 43.64, 49.8, 44.69]].map(r => pd('', 'rack', r, 4.3)),
     ...[37.76, 38.91, 43.66].flatMap(y => [41.85, 43.17, 44.55, 45.87, 47.25, 48.57].map(x => pd('', 'parihuela', [x, y, x + 1.2, y + 1], 0.9))),
@@ -361,10 +366,12 @@ const CIELO = 0xbfd8ec;
 scene.background = new THREE.Color(CIELO);
 scene.fog = new THREE.Fog(CIELO, 60, 190);
 // Entorno para los reflejos: sin esto el acero y la pintura de los modelos se ven negros
-scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+const entorno = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environment = entorno;
 const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 200);
 camera.rotation.order = 'YXZ';
-scene.add(new THREE.HemisphereLight(0xdcebff, 0x8a7a62, 0.75));
+const hemi = new THREE.HemisphereLight(0xdcebff, 0x8a7a62, 0.75);
+scene.add(hemi);
 const sol = new THREE.DirectionalLight(0xfff1dc, 2.2);
 sol.castShadow = true;
 sol.shadow.mapSize.set(movil ? 1024 : 2048, movil ? 1024 : 2048);
@@ -700,7 +707,8 @@ function armarNave(muros, techos, r, perfil, tramosMuro, otras) {
     const t = -n.luz / 2 + n.luz * i / nh;
     caja(g, s * (n.largo / 2 - 0.15), 0, t, 0.25, n.h(t) - 0.4, 0.25, concreto);
   }
-  // Campanas de luz colgadas bajo los arcos
+  // Campanas de luz colgadas bajo los arcos (solo si el plano no trae las luminarias)
+  if (!plano.luces) {
   const campana = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.18, 0.32, 0.3, 14), new THREE.MeshStandardMaterial({ color: 0xfff6dc, emissive: 0xfff2cc, emissiveIntensity: 1.2 }), 64);
   let nc = 0; const mt = new THREE.Matrix4();
   for (let i = 0; i < ejes.length - 1; i++) for (const f of [-0.25, 0.25]) {
@@ -708,6 +716,7 @@ function armarNave(muros, techos, r, perfil, tramosMuro, otras) {
     mt.makeTranslation(x0 + (ejes[i] + ejes[i + 1]) / 2, n.h(f * n.luz) - 1.1, f * n.luz); campana.setMatrixAt(nc++, mt);
   }
   campana.count = nc; g.add(campana);
+  }
 
   // Cerramiento por cada lado: calaminón desde +3,15 hasta el alero (lados
   // largos) o hasta el arco (hastiales). Donde el plano no trae muro en ese
@@ -1070,6 +1079,223 @@ function sonar(ahora) {
   audio.hidraulica.g.gain.setTargetAtTime(activo && mc.subiendo ? 0.035 : 0, t, 0.05);
 }
 
+// --- Mobiliario del plano: un modelo liviano por capa, a medida humana ----------------------
+// Todo lo de una misma capa sale con el mismo modelo (en el DXF algunos son bloques detallados y
+// otros un rectángulo). Medidas reales; el rect del plano solo ubica. Frente del modelo hacia +z.
+const M = {
+  negro: () => mat(0x1d1f22, { roughness: 0.6 }), cromo: () => mat(0xc9ccd0, { metalness: 0.9, roughness: 0.25 }),
+  acero: () => mat(0x9aa1a8, { metalness: 0.6, roughness: 0.4 }), madera: () => mat(0x9b6b43, { roughness: 0.65 }),
+  loza: () => mat(0xf3f3f1, { roughness: 0.15 }), blanco: () => mat(0xe9ebec, { roughness: 0.5 }), plomo: () => mat(0x7c8288, { roughness: 0.5, metalness: 0.3 }),
+  plastico: () => mat(0x8d949b, { roughness: 0.45 }), granito: () => mat(0x3d3f42, { roughness: 0.3 }),
+};
+const MUEBLE = {
+  silla(g) { // de oficina: base de 5 patas, asiento y respaldo negros
+    caja(g, 0, 0.42, 0, 0.48, 0.07, 0.46, M.negro()); caja(g, 0, 0.5, -0.22, 0.44, 0.52, 0.06, M.negro());
+    const p = cilindro(g, 0.025, 0.36, M.cromo()); p.position.y = 0.24;
+    for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5, b = caja(g, Math.sin(a) * 0.16, 0.04, Math.cos(a) * 0.16, 0.05, 0.03, 0.32, M.cromo()); b.rotation.y = a; }
+  },
+  silla_comedor(g) { // de plástico, cuatro patas
+    caja(g, 0, 0.43, 0, 0.42, 0.04, 0.42, M.plastico()); caja(g, 0, 0.47, -0.19, 0.4, 0.42, 0.03, M.plastico());
+    for (const [x, z] of [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]]) caja(g, x, 0, z, 0.03, 0.43, 0.03, M.acero());
+  },
+  casillero(g, W) { // casilleros metálicos de 0,30 m por puerta, 1,80 de alto
+    const n = Math.max(1, Math.round(W / 0.3)), w = W / n;
+    caja(g, 0, 0, 0, W, 1.8, 0.45, M.plomo());
+    for (let i = 0; i < n; i++) { caja(g, -W / 2 + (i + 0.5) * w, 0.05, 0.226, w - 0.02, 1.7, 0.01, mat(0x8e969d, { metalness: 0.4, roughness: 0.45 })); caja(g, -W / 2 + (i + 0.5) * w, 1.45, 0.234, w * 0.5, 0.02, 0.01, M.negro()); }
+  },
+  banca(g, W) { caja(g, 0, 0.42, 0, W, 0.05, 0.35, M.madera()); for (const x of [-W / 2 + 0.1, W / 2 - 0.1]) caja(g, x, 0, 0, 0.05, 0.42, 0.3, M.acero()); },
+  mesa_madera(g, W, D) {
+    caja(g, 0, 0.72, 0, W, 0.04, D, M.madera());
+    for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) caja(g, x * (W / 2 - 0.06), 0, z * (D / 2 - 0.06), 0.05, 0.72, 0.05, M.acero());
+  },
+  estante(g, W) { // estantería metálica de 4 niveles con cajas
+    const D = 0.45, rnd = azar(Math.round(W * 100));
+    for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) caja(g, x * (W / 2 - 0.02), 0, z * (D / 2 - 0.02), 0.035, 2.0, 0.035, M.plomo());
+    for (const y of [0.1, 0.6, 1.1, 1.6]) {
+      caja(g, 0, y, 0, W, 0.025, D, M.acero());
+      for (let x = -W / 2 + 0.2; x < W / 2 - 0.15; x += 0.42) if (rnd() < 0.7) caja(g, x + 0.1, y + 0.025, 0, 0.36, 0.2 + rnd() * 0.15, 0.32, mat([0xc8a571, 0xd9cfb8, 0x4a6fa5][Math.floor(rnd() * 3)], { roughness: 0.9 }));
+    }
+  },
+  encimera(g, W, D) { caja(g, 0, 0, 0, W, 0.86, Math.min(D, 0.6), M.blanco()); caja(g, 0, 0.86, 0, W + 0.02, 0.04, Math.min(D, 0.6) + 0.02, M.granito()); },
+  cocina(g) {
+    caja(g, 0, 0, 0, 0.6, 0.86, 0.6, mat(0xb9bec3, { metalness: 0.7, roughness: 0.3 })); caja(g, 0, 0.86, 0, 0.6, 0.03, 0.6, M.negro());
+    for (const [x, z] of [[-0.14, -0.14], [0.14, -0.14], [-0.14, 0.14], [0.14, 0.14]]) { const q = cilindro(g, 0.07, 0.02, M.negro()); q.position.set(x, 0.9, z); }
+  },
+  refrigerador(g) { caja(g, 0, 0, 0, 0.7, 1.8, 0.68, mat(0xdfe3e6, { metalness: 0.5, roughness: 0.25 })); caja(g, 0.28, 0.9, 0.345, 0.03, 0.5, 0.03, M.cromo()); caja(g, 0, 1.2, 0.343, 0.69, 0.01, 0.01, M.negro()); },
+  desinfeccion(g) { caja(g, 0, 0, 0, 0.4, 0.05, 0.4, M.plomo()); const p = cilindro(g, 0.03, 1.1, M.acero()); p.position.y = 0.6; caja(g, 0, 1.1, 0.03, 0.14, 0.24, 0.1, M.blanco()); },
+  inodoro(g) {
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.14, 0.4, 14), M.loza()); t.scale.z = 1.3; t.position.set(0, 0.2, 0.05); t.castShadow = true; g.add(t);
+    caja(g, 0, 0.4, 0.05, 0.36, 0.03, 0.46, M.blanco()); caja(g, 0, 0.4, -0.24, 0.42, 0.38, 0.18, M.loza());
+  },
+  lavatorio(g, W) {
+    const w = Math.max(0.5, Math.min(W, 0.6));
+    caja(g, 0, 0.78, 0, w, 0.08, 0.45, M.loza()); const p = cilindro(g, 0.07, 0.72, M.loza()); p.position.set(0, 0.39, -0.05);
+    const c = cilindro(g, 0.015, 0.2, M.cromo()); c.position.set(0, 0.95, -0.17);
+  },
+  urinario(g) { const u = caja(g, 0, 0.45, -0.1, 0.36, 0.65, 0.3, M.loza()); u.scale.z = 0.3; },
+  ducha(g, W, D) {
+    caja(g, 0, 0, 0, W, 0.04, D, mat(0xd7d9d6, { roughness: 0.4 }));
+    const t = cilindro(g, 0.012, 0.3, M.cromo(), 'z'); t.position.set(0, 2.05, -D / 2 + 0.15);
+    const r = cilindro(g, 0.07, 0.02, M.cromo()); r.position.set(0, 2.0, -D / 2 + 0.3);
+  },
+  tablero(g, W) { // tablero eléctrico adosado al muro, de 1,2 a 2,0 m
+    const w = Math.max(0.4, Math.min(W, 0.8));
+    caja(g, 0, 1.2, -0.1, w, 0.8, 0.2, M.plomo()); caja(g, 0, 1.25, 0.002, w - 0.06, 0.7, 0.01, mat(0x9aa1a8, { metalness: 0.4 })); caja(g, w / 2 - 0.08, 1.55, 0.01, 0.03, 0.1, 0.02, M.negro());
+  },
+  cargador(g) { caja(g, 0, 1.0, -0.08, 0.35, 0.5, 0.16, M.plomo()); caja(g, 0, 1.38, 0.002, 0.2, 0.06, 0.01, mat(0x22a35a, { emissive: 0x22a35a, emissiveIntensity: 1 })); },
+};
+const ADOSADO = new Set(['casillero', 'estante', 'encimera', 'cocina', 'refrigerador', 'inodoro', 'lavatorio', 'urinario', 'ducha', 'tablero', 'cargador', 'banca']);
+/** Mobiliario del DXF ([tipo, x0, y0, x1, y1, giro, altura del piso]): orientado de espaldas al muro más cercano
+ *  (o, las sillas, mirando a su mesa); puertas abiertas en su vano y ventanas con vidrio y marco. */
+function armarMuebles(padre, lista, muros, huecos) {
+  const mesas = lista.filter(m => ['mesa_madera', 'encimera'].includes(m[0])).map(m => [(m[1] + m[3]) / 2 - DXF.x, DXF.y - (m[2] + m[4]) / 2, m[6]]);
+  const vidrios = [], duchas = [];
+  for (const [tipo, x0, y0, x1, y1, , base] of lista) {
+    if (tipo === 'ducha') { // cada cubículo viene en varias líneas: uno solo por cubículo de al menos 0,7 m
+      if (x1 - x0 < 0.7 || y1 - y0 < 0.7 || duchas.some(([a, b, c, d]) => x0 < c && x1 > a && y0 < d && y1 > b)) continue;
+      duchas.push([x0, y0, x1, y1]);
+    }
+    const cx = (x0 + x1) / 2 - DXF.x, cz = DXF.y - (y0 + y1) / 2, W = x1 - x0, D = y1 - y0;
+    if (tipo === 'puerta' || tipo === 'puerta_metal') {
+      // Hoja abierta 90° en el vano que cae dentro de su dibujo (la del dibujo marca hacia dónde abre)
+      const h = huecos.find(h => Math.abs(h.base - base) < 0.5 && Math.abs((h.horiz ? h.c : h.f) - cx) < W / 2 + 0.3 && Math.abs((h.horiz ? h.f : h.c) - cz) < D / 2 + 0.3);
+      if (!h || h.usado) continue; h.usado = true;
+      const lado = Math.sign((h.horiz ? cz - h.f : cx - h.f) || 1), hojas = h.ancho > 1.3 ? [h.a, h.b] : [Math.abs(h.a - (h.horiz ? cx : cz)) < Math.abs(h.b - (h.horiz ? cx : cz)) ? h.a : h.b];
+      const largo = h.ancho / hojas.length - 0.02, alto = Math.min(2.45, h.tope - h.base - 0.05), m = tipo === 'puerta_metal' ? M.plomo() : mat(0xb48a5e, { roughness: 0.55 });
+      for (const bisagra of hojas) {
+        const [x, z] = h.horiz ? [bisagra + Math.sign(h.c - bisagra) * 0.03, h.f + lado * (largo / 2 + 0.05)] : [h.f + lado * (largo / 2 + 0.05), bisagra + Math.sign(h.c - bisagra) * 0.03];
+        caja(padre, x, h.base, z, h.horiz ? 0.04 : largo, alto, h.horiz ? largo : 0.04, m);
+      }
+      continue;
+    }
+    if (tipo === 'ventana' || tipo === 'ventana_alta') { // vidrio con marco de aluminio, pasante al muro
+      const enX = W >= D, L = Math.max(W, D), y0v = base + (tipo === 'ventana_alta' ? 1.7 : 0.95), hv = tipo === 'ventana_alta' ? 0.6 : 1.15;
+      vidrios.push(new THREE.BoxGeometry(enX ? L : 0.2, hv, enX ? 0.2 : L).translate(cx, y0v + hv / 2, cz));
+      for (const [dy, dh] of [[0, 0.05], [hv - 0.05, 0.05]]) caja(padre, cx, y0v + dy, cz, enX ? L : 0.22, dh, enX ? 0.22 : L, M.acero(), false);
+      for (const s of [-1, 1]) caja(padre, enX ? cx + s * L / 2 : cx, y0v, enX ? cz : cz + s * L / 2, enX ? 0.05 : 0.22, hv, enX ? 0.22 : 0.05, M.acero(), false);
+      continue;
+    }
+    const f = MUEBLE[tipo]; if (!f) continue;
+    const g = new THREE.Group(); g.position.set(cx, base, cz);
+    let ang = 0;
+    if (ADOSADO.has(tipo)) { // de espaldas al muro más cercano
+      let mejor = 1.2;
+      for (const w of muros) {
+        if (w.base > base + 1 || w.tope < base + 1) continue;
+        const dx = Math.max(w.x0 - cx, 0, cx - w.x1), dz = Math.max(w.z0 - cz, 0, cz - w.z1), d = Math.hypot(dx, dz);
+        if (d < mejor) { mejor = d; const ex = Math.abs(dx) > Math.abs(dz) ? Math.sign((w.x0 + w.x1) / 2 - cx) : 0, ez = ex ? 0 : Math.sign((w.z0 + w.z1) / 2 - cz); ang = Math.atan2(-ex, -ez); }
+      }
+    } else if (tipo.startsWith('silla')) { // mirando a la mesa más cercana
+      const m = mesas.filter(t => Math.abs(t[2] - base) < 0.5).sort((a, b) => Math.hypot(a[0] - cx, a[1] - cz) - Math.hypot(b[0] - cx, b[1] - cz))[0];
+      ang = m && Math.hypot(m[0] - cx, m[1] - cz) < 2 ? Math.atan2(m[0] - cx, m[1] - cz) : 0;
+    }
+    g.rotation.y = ang;
+    const a = Math.abs(Math.sin(ang)) > 0.7; // girado 90°: el ancho del modelo es el fondo del rect
+    f(g, a ? D : W, a ? W : D);
+    padre.add(g);
+  }
+  if (vidrios.length) {
+    const v = new THREE.Mesh(mergeGeometries(vidrios), new THREE.MeshStandardMaterial({ color: 0x9fc3d6, metalness: 0.2, roughness: 0.05, transparent: true, opacity: 0.35, depthWrite: false }));
+    v.userData.sinChoque = true; padre.add(v); vidrios.forEach(q => q.dispose());
+  }
+}
+
+// --- Luminarias e interruptores del plano eléctrico -----------------------------------------
+// Cada luminaria trae su letra de circuito; cada interruptor, los circuitos que manda. Las
+// campanas cuelgan del arco, los paneles van al cielo raso y los reflectores al muro. La luz que
+// se ve en el piso es una mancha aditiva (un solo dibujo para todas); unas pocas luces reales se
+// pasan a las luminarias encendidas más cercanas (de noche son las que alumbran las máquinas).
+const circuitos = new Map();
+let luminarias = [], interruptores = [], noche = false, lamparas = null;
+const LUCES_REALES = Array.from({ length: movil ? 2 : 6 }, () => { const l = new THREE.PointLight(0xfff0d8, 0, 16, 2); scene.add(l); return l; });
+let texCharco = null;
+function armarLuces(padre, pl, naves) {
+  luminarias = []; interruptores = []; circuitos.clear();
+  const techos = [...(pl.cielos || []), ...(pl.oficinas || []).map(r => [r, ALTO_MURO]), ...(pl.pisos || []).flatMap(p => p.rects.map(r => [r, p.h - 0.15]))];
+  for (const [lx, ly, base, cod, tipo] of pl.luces || []) {
+    const x = lx - DXF.x, z = DXF.y - ly;
+    let h, forma = 'panel';
+    if (base > 0) h = base + (base > 4 ? 2.4 : base > 3 ? 2.6 : 2.65) - 0.02;
+    else {
+      const t = techos.filter(([r, a]) => a > 2.2 && dentro(r, x, z)).map(([, a]) => a);
+      const n = naves.find(n => x >= n.X && x <= n.X + n.W && z >= n.Z && z <= n.Z + n.D);
+      if (t.length) h = Math.min(...t) - 0.02;
+      else if (n) { h = Math.min(n.alto(x, z) - 1.2, 8); forma = 'campana'; }
+      else { h = 3.3; forma = 'reflector'; }
+    }
+    if (tipo === 'reflector') forma = 'reflector';
+    luminarias.push({ x, z, h, base, cod, forma });
+    circuitos.set(cod, true);
+  }
+  // Mallas instanciadas: carcasa (iluminada) y difusor (brilla si está prendida), por forma; charcos de luz en el piso
+  const formas = {
+    campana: [new THREE.CylinderGeometry(0.2, 0.36, 0.32, 18, 1, true).translate(0, 0.16, 0), new THREE.CircleGeometry(0.34, 18).rotateX(Math.PI / 2)],
+    panel: [new THREE.BoxGeometry(0.62, 0.05, 0.62).translate(0, 0.025, 0), new THREE.PlaneGeometry(0.56, 0.56).rotateX(Math.PI / 2).translate(0, -0.002, 0)],
+    reflector: [new THREE.BoxGeometry(0.3, 0.22, 0.12), new THREE.PlaneGeometry(0.26, 0.18).translate(0, 0, 0.062)],
+  };
+  const carcasa = mat(0x6b7178, { metalness: 0.6, roughness: 0.4, side: THREE.DoubleSide });
+  lamparas = { difusores: [], charcos: null, porForma: {} };
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Vector3();
+  for (const [forma, [gc, gd]] of Object.entries(formas)) {
+    const ls = luminarias.filter(l => l.forma === forma); if (!ls.length) continue;
+    const c = new THREE.InstancedMesh(gc, carcasa, ls.length), d = new THREE.InstancedMesh(gd, new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }), ls.length);
+    ls.forEach((l, i) => { m.compose(e.set(l.x, l.h - (forma === 'campana' ? 0.32 : forma === 'panel' ? 0.05 : 0), l.z), q, new THREE.Vector3(1, 1, 1)); c.setMatrixAt(i, m); d.setMatrixAt(i, m); l.i = i; });
+    c.castShadow = false; padre.add(c, d); lamparas.difusores.push([d, ls]);
+    if (forma === 'campana') { // cadena de suspensión hasta el arco
+      for (const l of ls) caja(padre, l.x, l.h, l.z, 0.015, 1.1, 0.015, carcasa, false);
+    }
+  }
+  if (!texCharco) {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    texCharco = new THREE.CanvasTexture(cv);
+  }
+  const ch = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: texCharco, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.25 }), luminarias.length);
+  luminarias.forEach((l, i) => { const r = Math.min(7, Math.max(2.2, (l.h - l.base) * 0.75)); m.compose(e.set(l.x, l.base + 0.035, l.z), q, new THREE.Vector3(r * 2, 1, r * 2)); ch.setMatrixAt(i, m); });
+  ch.renderOrder = 2; padre.add(ch); lamparas.charcos = ch;
+  // Interruptores: placa a 1,20 m del piso
+  for (const [ix, iy, base, cods] of pl.interruptores || []) {
+    const x = ix - DXF.x, z = DXF.y - iy;
+    interruptores.push({ x, z, base, cods });
+    caja(padre, x, base + 1.15, z, 0.09, 0.13, 0.09, M.blanco(), false); caja(padre, x, base + 1.19, z, 0.1, 0.05, 0.1, mat(0x3b3e43), false);
+  }
+  pintarLuces();
+}
+function pintarLuces() {
+  if (!lamparas) return;
+  const c = new THREE.Color();
+  for (const [d, ls] of lamparas.difusores) { ls.forEach(l => d.setColorAt(l.i, c.setScalar(circuitos.get(l.cod) ? 1.6 : 0.18))); d.instanceColor.needsUpdate = true; }
+  luminarias.forEach((l, i) => lamparas.charcos.setColorAt(i, circuitos.get(l.cod) ? c.setRGB(1, 0.94, 0.82) : c.setScalar(0)));
+  lamparas.charcos.instanceColor.needsUpdate = true;
+  lamparas.charcos.material.opacity = noche ? 0.9 : 0.22;
+  cuadroLuces = 0; // reasignar las luces reales ya
+}
+let cuadroLuces = 0;
+function moverLucesReales() {
+  if (--cuadroLuces > 0) return; cuadroLuces = 20;
+  const p = camera.position, prendidas = luminarias.filter(l => circuitos.get(l.cod)).sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z, a.h - p.y) - Math.hypot(b.x - p.x, b.z - p.z, b.h - p.y));
+  LUCES_REALES.forEach((luz, i) => {
+    const l = prendidas[i];
+    if (!l || Math.hypot(l.x - p.x, l.z - p.z) > 30) { luz.intensity = 0; return; }
+    luz.position.set(l.x, l.h - 0.4, l.z); luz.intensity = noche ? (l.forma === 'campana' ? 90 : 25) : 6; luz.distance = l.forma === 'campana' ? 18 : 9;
+  });
+}
+const interruptorCerca = () => {
+  if (conduciendo || aerea) return null;
+  let mejor = null, dm = 1.6;
+  for (const s of interruptores) { const d = Math.hypot(s.x - jugador.x, s.z - jugador.z); if (d < dm && Math.abs(s.base - jugador.h) < 0.6) { dm = d; mejor = s; } }
+  return mejor;
+};
+function alternar(s) { const on = s.cods.some(c => circuitos.get(c)); for (const c of s.cods) circuitos.set(c, !on); pintarLuces(); }
+const cielo = { dia: new THREE.Color(CIELO), noche: new THREE.Color(0x0a1220) };
+function ponerNoche(v) {
+  noche = v;
+  scene.background.copy(v ? cielo.noche : cielo.dia); scene.fog.color.copy(scene.background);
+  sol.intensity = v ? 0.08 : 2.2; sol.color.setHex(v ? 0x9db4ff : 0xfff1dc); hemi.intensity = v ? 0.05 : 0.75;
+  scene.environment = v ? null : entorno; renderer.toneMappingExposure = v ? 1.25 : 1;
+  pintarLuces();
+}
+
 // --- Armar la escena de un plano ---------------------------------------------
 let mundo = null, techos = null, plano = null, bloqueos = [], maquinas = [], limites = null;
 // Los modelos clonados comparten geometría y materiales con su original: no se liberan.
@@ -1144,9 +1370,10 @@ function armar(pl) {
   pl.piezas.sort((a, b) => (b.t === 'rack') - (a.t === 'rack'));
   for (const p of pl.piezas) {
     const X = p.x * S, Z = p.y * S, W = p.w * S, D = p.d * S, H = p.h * S, cx = X + W / 2, cz = Z + D / 2;
-    if (!['auto', 'parihuela', 'rack'].includes(p.t)) bloquear(X, Z, W, D);
+    if (!['auto', 'parihuela', 'rack', 'bandeja'].includes(p.t)) bloquear(X, Z, W, D);
     if (p.t === 'muro') { caja(mundo, cx, 0, cz, Math.max(W, 0.18), p.alto || ALTO_MURO, Math.max(D, 0.18), blanco); continue; }
     if (p.t === 'columna') { caja(mundo, cx, 0, cz, W, H, D, mat(0xb9b5ab, { roughness: 0.9 })); continue; }
+    if (p.t === 'bandeja') { caja(mundo, cx, 2.95, cz, W, 0.02, D, mat(0x9aa1a8, { metalness: 0.6 })); for (const s of [-1, 1]) caja(mundo, W > D ? cx : cx + s * W / 2, 2.95, W > D ? cz + s * D / 2 : cz, W > D ? W : 0.02, 0.1, W > D ? 0.02 : D, mat(0x9aa1a8, { metalness: 0.6 })); continue; }
     if (p.t === 'equipo') { caja(mundo, cx, 0, cz, W, H, D, mat(p.color ?? 0x8f979e, { roughness: 0.5, metalness: 0.3 })); continue; }
     if (p.t === 'rack' && p.exacta) { rackReal(mundo, p, rnd); continue; }
     if (p.t === 'rack') { pendientes.push(conModelo(muebles, 'rack', cx, cz, W, D, g => rack(g, p))); continue; }
@@ -1228,18 +1455,26 @@ function armar(pl) {
     }
   }
   // Dinteles: sobre cada vano entre tramos de muro alineados (puertas del plano de 2,50 m; portones a 2,60 m)
-  const tramos = pl.piezas.filter(p => p.t === 'muro').map(p => {
+  const tramos = [
+    ...pl.piezas.filter(p => p.t === 'muro').map(p => ({ r: p, base: 0, tope: p.alto || ALTO_MURO })),
+    ...(pl.muros2 || []).map(([x0, y0, x1, y1, h, tope]) => ({ r: rd(x0, y0, x1, y1), base: h, tope: tope ?? h + (h > 4 ? 2.4 : h > 3 ? 2.6 : 2.65) })),
+  ].map(({ r: p, base, tope }) => {
     const h = p.w >= p.d;
-    return { h, a: (h ? p.x : p.y) * S, b: (h ? p.x + p.w : p.y + p.d) * S, f: (h ? p.y + p.d / 2 : p.x + p.w / 2) * S, e: Math.max(Math.min(p.w, p.d) * S, 0.18), alto: p.alto || ALTO_MURO };
+    return { h, a: (h ? p.x : p.y) * S, b: (h ? p.x + p.w : p.y + p.d) * S, f: (h ? p.y + p.d / 2 : p.x + p.w / 2) * S, e: Math.max(Math.min(p.w, p.d) * S, 0.12), base, tope,
+      x0: p.x * S, z0: p.y * S, x1: (p.x + p.w) * S, z1: (p.y + p.d) * S };
   });
+  const huecos = [];
   for (const t of tramos) {
-    const sig = tramos.filter(o => o.h === t.h && Math.abs(o.f - t.f) < 0.06 && o.a >= t.b - 0.01).sort((x, y) => x.a - y.a)[0];
+    const sig = tramos.filter(o => o.h === t.h && Math.abs(o.f - t.f) < 0.06 && Math.abs(o.base - t.base) < 0.3 && o.a >= t.b - 0.01).sort((x, y) => x.a - y.a)[0];
     if (!sig) continue;
-    const ancho = sig.a - t.b, y0 = ancho > 1.8 ? 2.6 : 2.5, tope = Math.min(t.alto, sig.alto);
-    if (ancho < 0.6 || ancho > 3.2 || tope <= y0) continue;
+    const ancho = sig.a - t.b, y0 = t.base + (ancho > 1.8 ? 2.6 : t.base ? 2.2 : 2.5), tope = Math.min(t.tope, sig.tope);
+    if (ancho < 0.6 || ancho > 3.2) continue;
     const c = (t.b + sig.a) / 2;
-    caja(mundo, t.h ? c : t.f, y0, t.h ? t.f : c, t.h ? ancho : t.e, tope - y0, t.h ? t.e : ancho, blanco);
+    huecos.push({ horiz: t.h, f: t.f, a: t.b, b: sig.a, c, ancho, base: t.base, tope: y0 });
+    if (tope > y0) caja(mundo, t.h ? c : t.f, y0, t.h ? t.f : c, t.h ? ancho : t.e, tope - y0, t.h ? t.e : ancho, blanco);
   }
+  if (pl.muebles) armarMuebles(mundo, pl.muebles, tramos, huecos);
+  armarLuces(mundo, pl, naves);
 
   // Montacargas: estacionado donde dice el plano, listo para manejar
   for (const [x, y, giro] of (pl.montacargas || []).slice(0, 1)) pendientes.push(crearMontacargas(movibles, x * S, y * S, giro));
@@ -1422,7 +1657,8 @@ addEventListener('keydown', e => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
   teclas.add(e.code);
   if (e.code === 'KeyV') aerea = !aerea;
-  if (e.code === 'KeyE' && !e.repeat && intro.hidden) { iniciarAudio(); subirBajar(); }
+  if (e.code === 'KeyE' && !e.repeat && intro.hidden) { iniciarAudio(); accionar(); }
+  if (e.code === 'KeyN' && !e.repeat) ponerNoche(!noche);
   if (e.code === 'Digit1') elegir(0);
   if (e.code === 'Digit2') elegir(1);
 });
@@ -1466,7 +1702,14 @@ canvas.addEventListener('touchend', finToque); canvas.addEventListener('touchcan
 // Botones del montacargas (táctil; con teclado también se pueden usar con el mouse)
 const botonesMc = document.getElementById('botonesMc'), bMc = document.getElementById('bMc'), bSube = document.getElementById('bSube'), bBaja = document.getElementById('bBaja');
 let subeToque = 0;
-bMc.addEventListener('click', () => { iniciarAudio(); subirBajar(); });
+bMc.addEventListener('click', () => { iniciarAudio(); accionar(); });
+/** E (o el botón): bajar del montacargas, el interruptor o el montacargas, lo que esté más cerca. */
+function accionar() {
+  if (conduciendo) return subirBajar();
+  const s = interruptorCerca();
+  if (s && (!cercaDelMontacargas() || Math.hypot(s.x - jugador.x, s.z - jugador.z) < Math.hypot(...asientoMundo().map((v, i) => v - [jugador.x, jugador.z][i])))) return alternar(s);
+  subirBajar();
+}
 for (const [b, v] of [[bSube, 1], [bBaja, -1]]) {
   b.addEventListener('pointerdown', e => { e.preventDefault(); subeToque = v; b.setPointerCapture?.(e.pointerId); });
   for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) b.addEventListener(ev, () => { if (subeToque === v) subeToque = 0; });
@@ -1549,10 +1792,14 @@ function pintarAccion() {
     const n = mc.carga.length, carga = n ? ` · <b>${n === 1 ? 'parihuela' : n + ' parihuelas'}</b>` : '';
     html = `<b>Montacargas</b> · ${Math.round(Math.abs(mc.v) * 3.6)} km/h${mc.v < -0.05 ? ' (retroceso)' : ''} · horquillas ${mc.H.toFixed(2).replace('.', ',')} m${carga}`
       + (movil ? '' : `<br><kbd>W</kbd><kbd>S</kbd> avanzar/retroceder · <kbd>A</kbd><kbd>D</kbd> girar · <kbd>R</kbd><kbd>F</kbd> horquillas · <kbd>E</kbd> bajar`);
+  } else if (interruptorCerca() && intro.hidden) {
+    const s = interruptorCerca(), on = s.cods.some(c => circuitos.get(c));
+    html = `${movil ? '' : '<kbd>E</kbd> '}${on ? 'apagar' : 'prender'} luces · circuito${s.cods.length > 1 ? 's' : ''} ${s.cods.join(', ')}`;
   } else if (cerca) html = movil ? 'Montacargas' : '<kbd>E</kbd> subir al montacargas';
   if (html !== accionPrevia) { accionPrevia = html; accion.innerHTML = html; accion.hidden = !html; }
-  botonesMc.hidden = !movil || !(cerca || conduciendo && !aerea);
-  bMc.textContent = conduciendo ? 'Bajar' : 'Subir al montacargas';
+  const sw = !conduciendo && interruptorCerca();
+  botonesMc.hidden = !movil || !(cerca || sw || conduciendo && !aerea);
+  bMc.textContent = conduciendo ? 'Bajar' : sw ? 'Interruptor' : 'Subir al montacargas';
   bSube.hidden = bBaja.hidden = !conduciendo;
 }
 
@@ -1588,7 +1835,7 @@ function bucle(ahora) {
     if (conduciendo) [jugador.x, jugador.z] = asientoMundo(); // la zona, el minimapa y los letreros siguen al montacargas
     mc.baliza.material.emissiveIntensity = conduciendo && Math.floor(ahora / 350) % 2 ? 2.4 : 0.2;
   }
-  sonar(ahora);
+  sonar(ahora); moverLucesReales();
   if (l > 0 && intro.hidden && !aerea) {
     const n = Math.min(1, l) / l, vel = (teclas.has('ShiftLeft') || teclas.has('ShiftRight') || Math.hypot(...joyVec) > 0.95 ? 6.5 : 2.8) * dt;
     const sx = Math.sin(yaw), cz = Math.cos(yaw);
@@ -1649,7 +1896,7 @@ function bucle(ahora) {
 }
 
 // Para probar desde la consola: recorrido.ir(x, z, rumbo) en metros
-window.recorrido = { get mc() { return mc; }, mover, pisoEn, get plataformas() { return plataformas; }, mcChoca, puntoLibre, deBlend, aMundo, HUELLA_CUERPO, HUELLA_HORQUILLAS, ocupado, get grilla() { return grilla; }, get conduciendo() { return conduciendo; }, get parihuelas() { return parihuelas; }, subirBajar, manejar, jugador, teclas, ir(x, z, r = yaw, p = 0) { jugador.x = x; jugador.z = z; yaw = r; pitch = p; intro.hidden = true; }, aerea(v) { aerea = v; intro.hidden = true; }, carga, scene, renderer, camera, ray, get mundo() { return mundo; } };
+window.recorrido = { get mc() { return mc; }, ponerNoche, accionar, get interruptores() { return interruptores; }, circuitos, mover, pisoEn, get plataformas() { return plataformas; }, mcChoca, puntoLibre, deBlend, aMundo, HUELLA_CUERPO, HUELLA_HORQUILLAS, ocupado, get grilla() { return grilla; }, get conduciendo() { return conduciendo; }, get parihuelas() { return parihuelas; }, subirBajar, manejar, jugador, teclas, ir(x, z, r = yaw, p = 0) { jugador.x = x; jugador.z = z; yaw = r; pitch = p; intro.hidden = true; }, aerea(v) { aerea = v; intro.hidden = true; }, carga, scene, renderer, camera, ray, get mundo() { return mundo; } };
 redimensionar();
 document.fonts?.ready.finally(() => { elegir(0); requestAnimationFrame(bucle); }) ?? (elegir(0), requestAnimationFrame(bucle));
 </script>
