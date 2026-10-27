@@ -1,0 +1,8 @@
+{
+  "name": "firebase-copia",
+  "private": true,
+  "description": "Copia la colección configuracion_formatos entre proyectos de Firestore",
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}
