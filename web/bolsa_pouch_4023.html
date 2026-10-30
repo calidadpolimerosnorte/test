@@ -186,7 +186,7 @@ function makeStripCanvas() {
 
   // esquinas del fondo cortadas: sin film fuera de la diagonal sellada
   const zig = [[0, SY.body], [65, SY.face], [0, SY.fold], [65, SY.gEnd], [0, 418]];
-  g.save(); g.globalCompositeOperation = 'destination-out';
+  g.save(); g.globalCompositeOperation = 'destination-out'; g.fillStyle = '#000';
   for (const m of [0, 1]) {
     g.beginPath();
     zig.forEach(([x, y], i) => { const xx = m ? W - x : x; i ? g.lineTo(xx, y) : g.moveTo(xx, y); });
@@ -207,7 +207,7 @@ function makeStripCanvas() {
     g.fillText(s, 0, 0); g.restore();
   };
   const hole = (x, y, r) => {
-    g.save(); g.globalCompositeOperation = 'destination-out';
+    g.save(); g.globalCompositeOperation = 'destination-out'; g.fillStyle = '#000';
     g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.restore();
     g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 0.45;
     g.beginPath(); g.arc(x, y, r + 0.2, 0, Math.PI * 2); g.stroke();
@@ -231,7 +231,7 @@ function makeStripCanvas() {
     text('4023', 274, 27.4, 4.9, 'center', 700, 0.95, '#fff');
 
     // asa troquelada
-    g.save(); g.globalCompositeOperation = 'destination-out';
+    g.save(); g.globalCompositeOperation = 'destination-out'; g.fillStyle = '#000';
     g.beginPath(); g.roundRect(SLOT.x0, SLOT.y0, SLOT.x1 - SLOT.x0, SLOT.y1 - SLOT.y0, 10); g.fill(); g.restore();
     g.strokeStyle = 'rgba(255,255,255,0.75)'; g.lineWidth = 0.5;
     g.beginPath(); g.roundRect(SLOT.x0 - 0.2, SLOT.y0 - 0.2, SLOT.x1 - SLOT.x0 + 0.4, SLOT.y1 - SLOT.y0 + 0.4, 10.2); g.stroke();
@@ -265,7 +265,7 @@ function makeStripCanvas() {
   g.save(); g.translate(HW, SY.fold); g.rotate(Math.PI); g.translate(-HW, -SY.fold); half(); g.restore();
 
   // solapa wicket: pre-corte (línea perforada) y 3 orificios Ø25 cada 100 mm
-  g.save(); g.globalCompositeOperation = 'destination-out';
+  g.save(); g.globalCompositeOperation = 'destination-out'; g.fillStyle = '#000';
   for (let x = 2; x < W - 2; x += 5) g.fillRect(x, SY.back - 0.45, 3.2, 0.9);
   g.restore();
   g.fillStyle = 'rgba(255,255,255,0.55)';
@@ -312,14 +312,22 @@ function place(sx, sy, S, out) {
     const z = D * 0.5 * s + 0.25;
     out[0] = u * halfWidth(D); out[1] = y; out[2] = front ? z : -z;
   } else {
-    // fuelle: plegado hacia adentro (W) cuando está plana, base plana al abrir
-    const t = (sy - SY.face) / (SY.gEnd - SY.face);
-    const D0 = S.Db, zf = D0 * 0.5 * s + 0.25;
-    const ridge = 1 - Math.abs(2 * t - 1);
-    const hFold = 65 * Math.min(1, (HW - Math.abs(sx - HW)) / 65);
-    out[0] = u * halfWidth(D0);
-    out[1] = (1 - S.o) * hFold * ridge + S.o * 0.4 * ridge * s;
-    out[2] = lerp(zf, -zf, t) * (0.15 + 0.85 * S.o) + (1 - S.o) * (1 - 2 * t) * 0.2;
+    // fuelle. Plana: cada mitad se dobla hacia adentro sobre la cara, así su
+    // borde diagonal coincide con el corte sellado de la esquina. Abierta: forma
+    // la base; junto a los costados sube siguiendo la diagonal hasta unirse a la cara.
+    const w = 1 - Math.abs(sy - SY.fold) / 65;           // 0 en la cara, 1 en el pliegue central
+    const side = sy < SY.fold ? 1 : -1;                  // mitad frontal o posterior
+    const xe = HW - Math.abs(sx - HW);
+    const ws = Math.max(0, (65 - xe) / 65);              // posición del sello en esta columna
+    const yOpen = Math.max(0, 65 - xe);
+    const y = lerp(65 * w, yOpen, S.o);
+    const D = depth(y, sx, S);
+    const zFace = D * 0.5 * s + 0.25;
+    const k = ws < 1 ? clamp01((w - ws) / (1 - ws)) : 1;
+    const zOpen = zFace * (1 - k);
+    out[0] = u * halfWidth(D);
+    out[1] = y;
+    out[2] = side * lerp(0.25 * (1 - w) + 0.1, zOpen, S.o);
   }
   return out;
 }
@@ -572,7 +580,8 @@ function inside(x, y, z, r) {
   const D = depth(y, HW, FINAL), hw = halfWidth(D);
   const u = x / hw;
   if (Math.abs(u) >= 1) return false;
-  return Math.abs(z) < D * 0.5 * prof(u) - r - 1.5 && y > r + 0.8;
+  const xe = (1 - Math.abs(u)) * HW;                    // esquinas selladas en diagonal
+  return Math.abs(z) < D * 0.5 * prof(u) - r - 1.5 && y > r + 0.8 && y > 65 - xe + r * 1.2;
 }
 const berries = [];
 {
