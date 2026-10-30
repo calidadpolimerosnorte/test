@@ -153,6 +153,14 @@ const lerp = (a, b, k) => a + (b - a) * k;
 // ---------------------------------------------------------------------------
 // Textura de la tira: film cristal, sellos punteados, impresión roja, orificios
 // ---------------------------------------------------------------------------
+// Esquinas del fondo: cortadas en diagonal (45°) y selladas sobre esa línea.
+// Devuelve la distancia del corte al borde lateral para una fila sy, o null.
+function cornerCut(sy) {
+  if (sy >= SY.body && sy <= SY.fold) return 65 - Math.abs(sy - SY.face);
+  if (sy > SY.fold && sy <= 418) return 65 - Math.abs(sy - SY.gEnd);
+  return null;
+}
+
 function makeStripCanvas() {
   const k = 4, cv = document.createElement('canvas');
   cv.width = W * k; cv.height = SY.end * k;
@@ -163,11 +171,7 @@ function makeStripCanvas() {
   g.fillRect(0, 0, W, SY.end);
 
   // Línea diagonal de los sellos de esquina (fondo tipo K-seal)
-  const diag = sy => {
-    if (sy >= SY.body && sy <= SY.fold) return 65 - Math.abs(sy - SY.face);
-    if (sy > SY.fold && sy <= 418) return 65 - Math.abs(sy - SY.gEnd);
-    return null;
-  };
+  const diag = cornerCut;
   // Sellos: punteado en los bordes laterales y en las diagonales del fondo
   for (let y = 0.75; y < SY.end; y += 1.5) {
     const dl = diag(y);
@@ -175,10 +179,25 @@ function makeStripCanvas() {
       const xe = Math.min(x, W - x);
       let a = 0;
       if (dl === null) { if (xe < 5) a = 0.5; }
-      else if (Math.abs(xe - dl) < 3) a = 0.55;
-      else if (xe < dl) a = 0.22;
+      else if (xe >= dl && xe < dl + 5) a = 0.55;
       if (a) { g.fillStyle = `rgba(245,250,255,${a})`; g.fillRect(x - 0.35, y - 0.35, 0.7, 0.7); }
     }
+  }
+
+  // esquinas del fondo cortadas: sin film fuera de la diagonal sellada
+  const zig = [[0, SY.body], [65, SY.face], [0, SY.fold], [65, SY.gEnd], [0, 418]];
+  g.save(); g.globalCompositeOperation = 'destination-out';
+  for (const m of [0, 1]) {
+    g.beginPath();
+    zig.forEach(([x, y], i) => { const xx = m ? W - x : x; i ? g.lineTo(xx, y) : g.moveTo(xx, y); });
+    g.closePath(); g.fill();
+  }
+  g.restore();
+  g.strokeStyle = 'rgba(255,255,255,0.6)'; g.lineWidth = 0.5;
+  for (const m of [0, 1]) {
+    g.beginPath();
+    zig.forEach(([x, y], i) => { const xx = m ? W - x : x; i ? g.lineTo(xx, y) : g.moveTo(xx, y); });
+    g.stroke();
   }
 
   const text = (s, x, y, size, align = 'left', weight = 700, squeeze = 0.86, color = RED) => {
@@ -479,7 +498,15 @@ function makePart(rows, edges) {
   // bordes (sellos laterales y cantos superiores) como líneas
   const segs = [];
   const add = (i, j) => segs.push(i, j);
-  if (edges.includes('sides')) for (let r = 0; r < nr - 1; r++) { add(r * nc, (r + 1) * nc); add(r * nc + nc - 1, (r + 1) * nc + nc - 1); }
+  if (edges.includes('sides')) {
+    // el borde sigue el corte diagonal de las esquinas
+    const ci = r => { const d = cornerCut(rows[r]); return d === null ? 0 : Math.round(d / W * (nc - 1)); };
+    for (let r = 0; r < nr - 1; r++) {
+      const a = ci(r), b = ci(r + 1);
+      add(r * nc + a, (r + 1) * nc + b);
+      add(r * nc + nc - 1 - a, (r + 1) * nc + nc - 1 - b);
+    }
+  }
   if (edges.includes('first')) for (let c = 0; c < nc - 1; c++) add(c, c + 1);
   if (edges.includes('last')) for (let c = 0; c < nc - 1; c++) add((nr - 1) * nc + c, (nr - 1) * nc + c + 1);
   const lg = new THREE.BufferGeometry();
@@ -499,7 +526,7 @@ const lipRows = rowsFor([SY.back, SY.end], 3.4);
 const bag = new THREE.Group();
 scene.add(bag);
 const front = makePart(frontRows, ['sides', 'first']);
-const gusset = makePart(gussetRows, []);
+const gusset = makePart(gussetRows, ['sides']);
 const back = makePart(backRows, ['sides']);
 bag.add(front.mesh, gusset.mesh, back.mesh);
 
